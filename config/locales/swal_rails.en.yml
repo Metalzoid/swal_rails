@@ -1,0 +1,19 @@
+en:
+  swal_rails:
+    confirm_button_text: "OK"
+    cancel_button_text: "Cancel"
+    deny_button_text: "No"
+    close_button_aria_label: "Close this dialog"
+    confirm:
+      title: "Are you sure?"
+      confirm_button_text: "Yes"
+      cancel_button_text: "Cancel"
+    flash:
+      success:
+        title: "Success"
+      error:
+        title: "Error"
+      warning:
+        title: "Warning"
+      info:
+        title: "Info"

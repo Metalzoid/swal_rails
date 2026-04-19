@@ -1,0 +1,5 @@
+/*
+ * swal_rails stylesheet entrypoint.
+ * Imports the vendored SweetAlert2 CSS; override variables in your own stylesheet.
+ */
+@import "sweetalert2.css";

@@ -1,0 +1,19 @@
+fr:
+  swal_rails:
+    confirm_button_text: "OK"
+    cancel_button_text: "Annuler"
+    deny_button_text: "Non"
+    close_button_aria_label: "Fermer cette fenêtre"
+    confirm:
+      title: "Êtes-vous sûr ?"
+      confirm_button_text: "Oui"
+      cancel_button_text: "Annuler"
+    flash:
+      success:
+        title: "Succès"
+      error:
+        title: "Erreur"
+      warning:
+        title: "Attention"
+      info:
+        title: "Info"
