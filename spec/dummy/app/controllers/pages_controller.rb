@@ -4,12 +4,12 @@ class PagesController < ApplicationController
   def index; end
   def plain; end
 
-  def notice
+  def show_notice
     flash[:notice] = "Profile updated"
     redirect_to root_path
   end
 
-  def alert
+  def show_alert
     flash[:alert] = "Could not save"
     redirect_to root_path
   end

@@ -6,6 +6,7 @@
 /pkg/
 /spec/reports/
 /spec/tmp/
+/spec/dummy/tmp/
 /tmp/
 /Gemfile.lock
 gemfiles/*.gemfile.lock

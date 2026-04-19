@@ -10,8 +10,8 @@ Ruby view helpers, and full I18n. Everything is configurable.
 
 [![CI](https://github.com/Metalzoid/swal_rails/actions/workflows/main.yml/badge.svg)](https://github.com/Metalzoid/swal_rails/actions)
 [![Gem Version](https://badge.fury.io/rb/swal_rails.svg)](https://rubygems.org/gems/swal_rails)
-[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-CC342D.svg)](https://www.ruby-lang.org/)
-[![Rails](https://img.shields.io/badge/rails-7.0%20%E2%86%92%208.1-CC0000.svg)](https://rubyonrails.org/)
+[![Ruby](https://img.shields.io/badge/ruby-3.2%20%E2%86%92%204.0-CC342D.svg)](https://www.ruby-lang.org/)
+[![Rails](https://img.shields.io/badge/rails-7.2%20%E2%86%92%208.1.3-CC0000.svg)](https://rubyonrails.org/)
 [![SweetAlert2](https://img.shields.io/badge/SweetAlert2-v11.26-3085d6.svg)](https://sweetalert2.github.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
 
@@ -86,13 +86,15 @@ then — it's on **v11** now) and were built for the Rails 5 / UJS era.
 Tested on every combination of Ruby and Rails listed below via the
 [Appraisal](https://github.com/thoughtbot/appraisal) gem:
 
-|         | Rails 7.0 | Rails 7.1 | Rails 7.2 | Rails 8.0 | Rails 8.1 | Rails 8.1 + Sprockets |
-| ------- | :-------: | :-------: | :-------: | :-------: | :-------: | :-------------------: |
-| Ruby 3.2|     ✅    |     ✅    |     ✅    |     ✅    |     ✅    |           ✅          |
-| Ruby 3.3|     ✅    |     ✅    |     ✅    |     ✅    |     ✅    |           ✅          |
-| Ruby 3.4|     —     |     ✅    |     ✅    |     ✅    |     ✅    |           ✅          |
+|         | Rails 7.2 | Rails 8.0 | Rails 8.1.3 | Rails 8.1.3 + Sprockets |
+| ------- | :-------: | :-------: | :---------: | :---------------------: |
+| Ruby 3.2|     ✅    |     ✅    |      ✅     |            ✅           |
+| Ruby 3.3|     ✅    |     ✅    |      ✅     |            ✅           |
+| Ruby 3.4|     ✅    |     ✅    |      ✅     |            ✅           |
+| Ruby 3.5|     ✅    |     ✅    |      ✅     |            ✅           |
+| Ruby 4.0|     —     |     ✅    |      ✅     |            ✅           |
 
-> **Requirements:** Ruby **≥ 3.2**, Rails **≥ 7.0**, Turbo recommended.
+> **Requirements:** Ruby **≥ 3.2** (tested up to **4.0**), Rails **≥ 7.2** (tested up to **8.1.3**), Turbo recommended.
 
 ---
 
