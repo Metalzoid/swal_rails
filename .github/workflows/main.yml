@@ -47,3 +47,17 @@ jobs:
           bundler-cache: true
       - name: RuboCop
         run: bundle exec rubocop --no-server
+
+  # Single aggregator for branch protection — require this one check
+  # rather than every individual matrix job.
+  ci-success:
+    if: always()
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs passed
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.lint.result }}" != "success" ]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
