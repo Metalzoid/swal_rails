@@ -7,6 +7,15 @@ gemspec
 gem "irb"
 gem "rake", "~> 13.0"
 
+# Rails stack — pinned to the latest stable for local dev.
+# Declared at top level (not in a group) so Appraisal's `remove_gem`
+# can override them per-version in gemfiles/.
+gem "importmap-rails", "~> 2.0"
+gem "propshaft", "~> 1.0"
+gem "rails", "~> 8.1.3"
+gem "stimulus-rails", "~> 1.3"
+gem "turbo-rails", "~> 2.0"
+
 group :development, :test do
   gem "appraisal", "~> 2.5"
   gem "capybara", "~> 3.40"
@@ -17,12 +26,4 @@ group :development, :test do
   gem "rubocop", "~> 1.60", require: false
   gem "rubocop-rspec", require: false
   gem "sqlite3", "~> 1.7"
-
-  # Rails stack — pinned to the latest stable for local dev.
-  # Appraisal overrides these per-version in gemfiles/.
-  gem "importmap-rails", "~> 2.0"
-  gem "propshaft", "~> 1.0"
-  gem "rails", "~> 8.1.0"
-  gem "stimulus-rails", "~> 1.3"
-  gem "turbo-rails", "~> 2.0"
 end

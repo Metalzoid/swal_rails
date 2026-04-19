@@ -6,8 +6,8 @@ require "rails"
 require "action_controller/railtie"
 require "action_view/railtie"
 
-# Use whichever asset pipeline is available in the current gemset:
-# Propshaft (Rails 7.2+ default) or Sprockets (Rails 7.0/7.1).
+# Whichever pipeline the gemfile selected — Propshaft (default) or Sprockets
+# (the rails_8_1_sprockets appraisal variant).
 begin
   require "propshaft"
 rescue LoadError
@@ -31,8 +31,6 @@ module Dummy
     config.log_level = :warn
     config.hosts.clear
     config.active_support.deprecation = :silence
-    config.autoload_paths << config.root.join("app/controllers").to_s
-
     if config.respond_to?(:assets)
       config.assets.debug = false
       config.assets.quiet = true

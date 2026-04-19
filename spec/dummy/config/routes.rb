@@ -3,8 +3,8 @@
 Rails.application.routes.draw do
   root "pages#index"
   get  "/plain", to: "pages#plain"
-  get  "/notice", to: "pages#notice"
-  get  "/alert",  to: "pages#alert"
+  get  "/notice", to: "pages#show_notice"
+  get  "/alert",  to: "pages#show_alert"
   get  "/confirm", to: "pages#confirm_page"
   delete "/items/:id", to: "pages#destroy", as: :item
 end
