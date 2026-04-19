@@ -24,6 +24,9 @@ jobs:
             gemfile: gemfiles/rails_7_2.gemfile
     env:
       BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}
+      # Nokogiri ships precompiled native gems, but not for every Ruby.
+      # Force a source build when no matching binary exists (e.g. Ruby 3.5).
+      BUNDLE_FORCE_RUBY_PLATFORM: ${{ matrix.ruby == '3.5' && 'true' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
