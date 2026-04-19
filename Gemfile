@@ -20,9 +20,9 @@ group :development, :test do
 
   # Rails stack — pinned to the latest stable for local dev.
   # Appraisal overrides these per-version in gemfiles/.
-  gem "rails", "~> 8.1.0"
-  gem "propshaft", "~> 1.0"
   gem "importmap-rails", "~> 2.0"
+  gem "propshaft", "~> 1.0"
+  gem "rails", "~> 8.1.0"
   gem "stimulus-rails", "~> 1.3"
   gem "turbo-rails", "~> 2.0"
 end

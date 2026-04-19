@@ -7,6 +7,8 @@ AllCops:
     - 'tmp/**/*'
     - 'spec/dummy/**/*'
     - 'lib/generators/**/templates/**/*'
+    - 'gemfiles/**/*'
+    - 'spec/tmp/**/*'
 
 Style/StringLiterals:
   EnforcedStyle: double_quotes
