@@ -15,9 +15,13 @@ module SwalRails
         app.config.assets.paths << root.join("app/assets/javascripts").to_s
         app.config.assets.paths << root.join("app/assets/stylesheets").to_s
         app.config.assets.precompile += %w[
-          sweetalert2.js sweetalert2.min.js sweetalert2.all.js sweetalert2.all.min.js
+          sweetalert2.js sweetalert2.min.js
+          sweetalert2.all.js sweetalert2.all.min.js
+          sweetalert2.esm.js sweetalert2.esm.min.js
+          sweetalert2.esm.all.js sweetalert2.esm.all.min.js
           sweetalert2.css sweetalert2.min.css
           swal_rails/index.js swal_rails/confirm.js swal_rails/flash.js
+          swal_rails/controllers/swal_controller.js
         ]
       end
     end
