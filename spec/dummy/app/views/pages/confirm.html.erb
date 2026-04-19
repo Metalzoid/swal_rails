@@ -1,0 +1,7 @@
+<h1 id="confirm-title">Confirm page</h1>
+
+<%= button_to "Delete item",
+      item_path(42),
+      method: :delete,
+      data: { swal_confirm: "Really delete?" },
+      id: "delete-btn" %>

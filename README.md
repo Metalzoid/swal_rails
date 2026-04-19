@@ -42,9 +42,9 @@ Then:
 bundle install
 bin/rails g swal_rails:install           # autodetects your asset pipeline
 # or force a mode:
-bin/rails g swal_rails:install --assets=importmap
-bin/rails g swal_rails:install --assets=jsbundling
-bin/rails g swal_rails:install --assets=sprockets
+bin/rails g swal_rails:install --mode=importmap
+bin/rails g swal_rails:install --mode=jsbundling
+bin/rails g swal_rails:install --mode=sprockets
 ```
 
 The generator:

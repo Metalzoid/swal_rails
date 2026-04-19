@@ -10,17 +10,17 @@ module SwalRails
 
       ASSETS_MODES = %w[importmap jsbundling sprockets auto].freeze
 
-      class_option :assets, type: :string, default: "auto",
-                            desc: "Asset delivery mode: #{ASSETS_MODES.join(", ")}"
-      class_option :confirm_mode, type: :string, default: "data_attribute",
-                                  desc: "Default confirm mode: off | data_attribute | turbo_override | both"
-      class_option :skip_layout, type: :boolean, default: false,
-                                 desc: "Skip injecting meta tags into application.html.erb"
+      # `--mode` is used instead of `--assets` because Rails::Generators::Base
+      # reserves `:assets` as a boolean option (legacy `rails new --skip-assets`).
+      class_option :mode, type: :string, default: "auto", desc: "Asset mode: importmap, jsbundling, sprockets, auto"
+      class_option :confirm_mode, type: :string, default: "data_attribute", desc: "Confirm mode: off, data_attribute, turbo_override, both"
+      class_option :skip_layout, type: :boolean, default: false, desc: "Skip layout injection"
 
       def validate_options!
-        return if ASSETS_MODES.include?(options[:assets])
+        mode = (options[:mode] || "auto").to_s
+        return if ASSETS_MODES.include?(mode)
 
-        raise Thor::Error, "--assets must be one of #{ASSETS_MODES.join(", ")}"
+        raise Thor::Error, "--mode must be one of #{ASSETS_MODES.join(", ")}"
       end
 
       def copy_initializer
@@ -39,7 +39,7 @@ module SwalRails
         return if options[:skip_layout]
 
         layout = "app/views/layouts/application.html.erb"
-        return say_status(:skip, "#{layout} not found", :yellow) unless File.exist?(layout)
+        return say_status(:skip, "#{layout} not found", :yellow) unless file_exists?(layout)
 
         inject_into_file layout, before: %r{</head>} do
           "    <%= swal_rails_meta_tags %>\n  "
@@ -70,9 +70,10 @@ module SwalRails
       end
 
       def detect_assets_mode
-        return options[:assets] unless options[:assets] == "auto"
-        return "importmap"  if File.exist?("config/importmap.rb")
-        return "jsbundling" if File.exist?("package.json")
+        mode = (options[:mode] || "auto").to_s
+        return mode unless mode == "auto"
+        return "importmap"  if file_exists?("config/importmap.rb")
+        return "jsbundling" if file_exists?("package.json")
 
         "sprockets"
       end
@@ -81,7 +82,7 @@ module SwalRails
         pin_line = 'pin "swal_rails", to: "swal_rails/index.js"'
         pin_sa2  = 'pin "sweetalert2", to: "sweetalert2.esm.all.js"'
 
-        if File.exist?("config/importmap.rb")
+        if file_exists?("config/importmap.rb")
           append_unique "config/importmap.rb", pin_sa2
           append_unique "config/importmap.rb", pin_line
         else
@@ -89,7 +90,7 @@ module SwalRails
         end
 
         app_js = "app/javascript/application.js"
-        if File.exist?(app_js)
+        if file_exists?(app_js)
           append_unique app_js, 'import "swal_rails"'
         else
           say_status(:warn, "#{app_js} not found, add `import \"swal_rails\"` to your JS entrypoint", :yellow)
@@ -97,15 +98,15 @@ module SwalRails
       end
 
       def install_jsbundling
-        if File.exist?("package.json")
-          run "yarn add sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if File.exist?("yarn.lock")
-          run "npm install sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if File.exist?("package-lock.json") && !File.exist?("yarn.lock")
+        if file_exists?("package.json")
+          run "yarn add sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if file_exists?("yarn.lock")
+          run "npm install sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if file_exists?("package-lock.json") && !file_exists?("yarn.lock")
         else
           say_status(:warn, "package.json not found", :yellow)
         end
 
         app_js = "app/javascript/application.js"
-        if File.exist?(app_js)
+        if file_exists?(app_js)
           append_unique app_js, 'import "swal_rails"'
         else
           say_status(:warn, "#{app_js} not found", :yellow)
@@ -114,7 +115,7 @@ module SwalRails
 
       def install_sprockets
         manifest = "app/assets/config/manifest.js"
-        if File.exist?(manifest)
+        if file_exists?(manifest)
           append_unique manifest, "//= link sweetalert2.js"
           append_unique manifest, "//= link sweetalert2.css"
         else
@@ -123,10 +124,14 @@ module SwalRails
       end
 
       def append_unique(path, line)
-        content = File.read(path)
+        content = File.read(File.join(destination_root, path))
         return if content.include?(line)
 
         append_to_file path, "\n#{line}\n"
+      end
+
+      def file_exists?(path)
+        File.exist?(File.join(destination_root, path))
       end
     end
   end

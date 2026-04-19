@@ -1,21 +1,10 @@
 # frozen_string_literal: true
 
-require "rails"
-require "action_controller/railtie"
-require "action_view/railtie"
-
 ENV["RAILS_ENV"] ||= "test"
 
-require "swal_rails"
-
-class TestApp < Rails::Application
-  config.eager_load = false
-  config.logger = Logger.new(IO::NULL)
-  config.secret_key_base = "test"
-  config.active_support.deprecation = :silence
-  config.hosts.clear
-end
-TestApp.initialize!
+# spec_helper boots a Rails application from spec/dummy.
+# To keep unit-test load times low, we only initialize once.
+require_relative "dummy/config/environment" unless defined?(Rails) && Rails.application&.initialized?
 
 RSpec.configure do |config|
   config.example_status_persistence_file_path = ".rspec_status"
