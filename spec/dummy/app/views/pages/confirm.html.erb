@@ -5,3 +5,23 @@
       method: :delete,
       data: { swal_confirm: "Really delete?" },
       id: "delete-btn" %>
+
+<%= button_to "Delete (styled)",
+      item_path(43),
+      method: :delete,
+      data: {
+        swal_confirm: "Danger",
+        swal_options: { icon: "error", confirmButtonText: "Nuke", iconColor: "#ff0000" }.to_json
+      },
+      id: "delete-styled-btn" %>
+
+<%# Hash value is JSON-encoded by Rails into the attribute; we parse it
+    back in confirm.js and treat it as a full SA2 options object. Works
+    the same way for data-turbo-confirm under turbo_override mode. %>
+<%= button_to "Delete (hash msg)",
+      item_path(44),
+      method: :delete,
+      data: {
+        swal_confirm: { icon: "info", title: "Sure?", confirmButtonText: "Yep" }
+      },
+      id: "delete-hash-msg-btn" %>
