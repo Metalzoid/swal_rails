@@ -36,6 +36,8 @@ Ruby view helpers, and full I18n. Everything is configurable.
   - [Programmatic JS](#programmatic-js)
 - [I18n](#-i18n)
 - [Accessibility](#-accessibility)
+- [Security & CSP](#-security--csp)
+- [Themes](#-themes)
 - [Asset pipelines](#-asset-pipelines)
 - [Development](#-development)
 - [Contributing](#-contributing)
@@ -75,6 +77,7 @@ then — it's on **v11** now) and were built for the Rails 5 / UJS era.
 - 🛡️ **Turbo confirmations** — replace the native `confirm()` globally **or** opt-in per element.
 - 🎮 **Stimulus controller** (`data-controller="swal"`) for declarative popups.
 - 🧱 **Ruby view helpers** — `swal_tag`, `swal_config_meta_tag`, `swal_flash_meta_tag`.
+- 🔒 **CSP-friendly** — `swal_tag(..., nonce: true)` propagates the per-request nonce.
 - 🌍 **I18n ready** — `en` / `fr` locales shipped, override freely.
 - ♿ **Accessibility** — honors `prefers-reduced-motion`, preserves ARIA & focus trap.
 - 🧩 **Engine-based** — zero monkey-patching, follows Rails Engine conventions.
@@ -213,6 +216,22 @@ flash[:notice] = "Profile updated"   # → toast top-right
 flash[:alert]  = "Could not save"    # → modal
 ```
 
+Arrays are expanded into one popup per message — handy for model errors:
+
+```ruby
+flash[:alert] = @post.errors.full_messages  # ["Title can't be blank", "Body is too short"]
+# → two separate Swals, one per message
+```
+
+Need to override the per-key defaults for a single request? Assign a **Hash**
+instead of a String — its keys flow straight into `Swal.fire` and shadow
+`flash_map[key]`:
+
+```ruby
+flash[:notice] = { text: "Deployed!", icon: "rocket", timer: 5000, toast: true }
+# → ignores flash_map[:notice], fires a 5-second rocket toast
+```
+
 Behind the scenes, the engine serializes the flash into a meta tag
 (`<meta name="swal-flash" content="...">`) and the JS runtime reads it and
 calls `Swal.fire(...)` with your per-key options.
@@ -232,6 +251,18 @@ When `confirm_mode` is `:turbo_override` or `:both`, `swal_rails` replaces
 `Turbo.setConfirmMethod` with a SweetAlert2-backed implementation — the same
 `data-turbo-confirm` attribute now shows a proper modal.
 
+Pass a **Hash** instead of a string to carry full SA2 options:
+
+```erb
+<%= button_to "Delete", post_path(@post), method: :delete, data: {
+      turbo_confirm: { icon: "error", title: "Really?", confirmButtonText: "Nuke" }
+    } %>
+```
+
+Rails JSON-encodes the Hash into the attribute; the runtime parses it back
+and treats it as a full options object (same thing works with
+`data-swal-confirm`).
+
 ---
 
 ### `data-swal-confirm` attribute
@@ -243,15 +274,27 @@ If you don't want to override Turbo globally, opt-in per element:
       data: { swal_confirm: "Archive this item?", swal_icon: "warning" } %>
 ```
 
-Supported data attributes (any SA2 option works):
+Supported data attributes:
 
 | Attribute                          | Maps to                |
 | ---------------------------------- | ---------------------- |
 | `data-swal-confirm`                | `text` / title prompt  |
+| `data-swal-title`                  | `title`                |
+| `data-swal-text`                   | `text`                 |
 | `data-swal-icon`                   | `icon`                 |
-| `data-swal-confirm-button-text`    | `confirmButtonText`    |
-| `data-swal-cancel-button-text`     | `cancelButtonText`     |
-| `data-swal-options` *(JSON string)*| full options hash      |
+| `data-swal-confirm-text`           | `confirmButtonText`    |
+| `data-swal-cancel-text`            | `cancelButtonText`     |
+| `data-swal-options` *(JSON)*       | full SA2 options (wins over the above) |
+
+Use `data-swal-options` when you need anything beyond the shortcuts — it
+accepts any SweetAlert2 option:
+
+```erb
+<%= button_to "Delete", post_path(@post), method: :delete, data: {
+      swal_confirm: "Danger",
+      swal_options: { icon: "error", iconColor: "#ff0000", confirmButtonText: "Nuke" }.to_json
+    } %>
+```
 
 ---
 
@@ -277,6 +320,13 @@ Fire a one-shot popup directly from a view:
 
 ```erb
 <%= swal_tag(title: "Welcome back!", icon: "info", timer: 2000) %>
+```
+
+Under a strict Content Security Policy, pass `nonce: true` — Rails fills in
+the per-request nonce so the inline `<script>` survives the policy:
+
+```erb
+<%= swal_tag({ title: "Welcome back!" }, nonce: true) %>
 ```
 
 Lower-level helpers (injected by the generator into your layout):
@@ -345,6 +395,84 @@ client payload — change languages, button labels follow.
 
 ---
 
+## 🔒 Security & CSP
+
+### XSS safety
+
+All strings flowing through the Ruby helpers are hardened against the usual
+breakout sequences:
+
+- **`swal_tag`** runs the serialized options through `ERB::Util.json_escape`,
+  which neutralizes `</script>`, `<!--`, U+2028 and U+2029 before they reach
+  the inline `<script>` body.
+- **`swal_config_meta_tag`** and **`swal_flash_meta_tag`** emit `<meta>`
+  attributes, which Rails HTML-escapes automatically; the JS runtime feeds
+  messages to SweetAlert2's `text:` option (not `html:`), so flash payloads
+  are rendered as text even if they contain HTML.
+
+### Content Security Policy
+
+Meta tags carry no script and need no nonce. For the inline helper:
+
+```erb
+<%= swal_tag({ title: "Saved" }, nonce: true) %>
+```
+
+When ActionView's CSP helper is available, Rails substitutes the per-request
+nonce; otherwise `nonce: true` is silently dropped so the tag stays valid on
+apps without a configured CSP.
+
+> **SweetAlert2 + strict `style-src`** — SA2 injects styles via JavaScript.
+> Under `style-src 'self'` with no `'unsafe-inline'`, the popups won't be
+> styled. Either ship SA2's CSS via your normal stylesheet (the gem vendors
+> `sweetalert2.css`) or allow a style nonce for the inserted tags.
+
+---
+
+## 🎭 Themes
+
+The six official SweetAlert2 themes are vendored alongside the default
+stylesheet — pick one, load it in your layout, and set the
+`data-swal2-theme` attribute to activate it.
+
+| Theme | File |
+| --- | --- |
+| Bootstrap 4 | `sweetalert2/themes/bootstrap-4.css` |
+| Bootstrap 5 | `sweetalert2/themes/bootstrap-5.css` |
+| Borderless | `sweetalert2/themes/borderless.css` |
+| Bulma | `sweetalert2/themes/bulma.css` |
+| Material UI | `sweetalert2/themes/material-ui.css` |
+| Minimal | `sweetalert2/themes/minimal.css` |
+
+### Importmap / jsbundling (apps that load their own CSS)
+
+```erb
+<%# app/views/layouts/application.html.erb %>
+<%= stylesheet_link_tag "sweetalert2/themes/bootstrap-5" %>
+<body data-swal2-theme="bootstrap-5">
+```
+
+### Sprockets
+
+```css
+/* app/assets/stylesheets/application.css */
+*= require sweetalert2/themes/bootstrap-5
+```
+
+`bootstrap-5` and `material-ui` ship both a light and a dark variant
+baked into the same file — set `data-swal2-theme="bootstrap-5-dark"` or
+`"material-ui-dark"` to opt into dark mode.
+
+> **OS-driven dark mode?** Hook the attribute to `prefers-color-scheme`
+> with a one-liner:
+> ```js
+> document.body.dataset.swal2Theme =
+>   matchMedia("(prefers-color-scheme: dark)").matches
+>     ? "bootstrap-5-dark" : "bootstrap-5"
+> ```
+
+---
+
 ## 🎨 Asset pipelines
 
 `swal_rails` adapts to whichever pipeline you use — the generator picks the
@@ -380,7 +508,7 @@ right template automatically.
 $ git clone https://github.com/Metalzoid/swal_rails.git
 $ cd swal_rails
 $ bundle install
-$ bundle exec rspec         # 31 examples, real headless Chromium (Cuprite)
+$ bundle exec rspec         # 47 examples, real headless Chromium (Cuprite)
 $ bundle exec rubocop       # style
 ```
 
@@ -388,7 +516,7 @@ Test against a specific Rails version:
 
 ```bash
 $ bundle exec appraisal install
-$ BUNDLE_GEMFILE=gemfiles/rails_7_0.gemfile bundle exec rspec
+$ BUNDLE_GEMFILE=gemfiles/rails_7_2.gemfile bundle exec rspec
 $ BUNDLE_GEMFILE=gemfiles/rails_8_1_sprockets.gemfile bundle exec rspec
 ```
 
@@ -406,7 +534,7 @@ swal_rails/
 ├── vendor/javascript/sweetalert2/ # pinned SA2 v11.26.24 (MIT)
 ├── spec/
 │   └── dummy/                     # minimal Rails app for system tests
-├── Appraisals                     # Rails 7.0 → 8.1 + sprockets variant
+├── Appraisals                     # Rails 7.2 → 8.1 + sprockets variant
 └── gemfiles/                      # per-version lockfiles (generated)
 ```
 
