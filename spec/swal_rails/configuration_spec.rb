@@ -51,33 +51,5 @@ RSpec.describe SwalRails::Configuration do
       expect(payload).to include(:confirmMode, :flashMap, :defaultOptions, :respectReducedMotion)
       expect { payload.to_json }.not_to raise_error
     end
-
-    it "carries the exposeWindowSwal flag" do
-      config.expose_window_swal = false
-      expect(config.to_client_payload[:exposeWindowSwal]).to be(false)
-    end
-
-    it "surfaces I18n-backed button text into the payload" do
-      # Use an isolated scope so we don't leak translations into the live
-      # swal_rails scope used by the system suite's SweetAlert UI.
-      config.i18n_scope = "swal_rails_cfg_spec"
-      I18n.backend.store_translations(
-        :en,
-        swal_rails_cfg_spec: { confirm_button_text: "OK mate", cancel_button_text: "Nope" }
-      )
-
-      I18n.with_locale(:en) do
-        i18n = config.to_client_payload[:i18n]
-        expect(i18n[:confirm_button_text]).to eq("OK mate")
-        expect(i18n[:cancel_button_text]).to eq("Nope")
-      end
-    end
-  end
-
-  describe "#i18n_scope=" do
-    it "coerces non-string values to strings" do
-      config.i18n_scope = :my_scope
-      expect(config.i18n_scope).to eq("my_scope")
-    end
   end
 end

@@ -11,8 +11,7 @@ export const installFlash = (Swal, config) => {
   const map = config.flashMap || {}
   const queue = flashes.map((flash) => {
     const spec = map[flash.key] || map[flash.key.toLowerCase()] || { icon: "info", toast: true, position: "top-end", timer: 3000 }
-    // Per-request options win over the per-key defaults from flash_map.
-    return { ...spec, ...(flash.options || {}) }
+    return { ...spec, text: flash.message, title: spec.title }
   })
 
   const fireNext = () => {

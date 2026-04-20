@@ -1,38 +1,15 @@
-const parseJSON = (value) => {
-  if (!value) return {}
-  try { return JSON.parse(value) || {} } catch { return {} }
-}
-
-// When Rails serializes `data: { turbo_confirm: { icon: "error" } }`, the
-// attribute value is a JSON string. Detect that and treat the parsed object
-// as SA2 options rather than as a raw message.
-const messageOptions = (message) => {
-  if (typeof message !== "string" || message[0] !== "{") return null
-  try {
-    const parsed = JSON.parse(message)
-    return parsed && typeof parsed === "object" ? parsed : null
-  } catch { return null }
-}
-
 const confirmDialog = (Swal, message, element) => {
   const dataset = element?.dataset || {}
-  const fromMessage = messageOptions(message)
-  const text = fromMessage ? undefined : message
-
   const options = {
-    title: dataset.swalTitle || text || "Are you sure?",
-    text: dataset.swalText || (dataset.swalTitle ? text : undefined),
+    title: dataset.swalTitle || message || "Are you sure?",
+    text: dataset.swalText || (dataset.swalTitle ? message : undefined),
     icon: dataset.swalIcon || "warning",
     showCancelButton: true,
     focusCancel: true
   }
   if (dataset.swalConfirmText) options.confirmButtonText = dataset.swalConfirmText
   if (dataset.swalCancelText) options.cancelButtonText = dataset.swalCancelText
-
-  // Merge order (later wins): defaults → data-swal-* shortcuts → JSON message
-  // (turbo_confirm: {}) → data-swal-options (most specific).
-  const extras = parseJSON(dataset.swalOptions)
-  return Swal.fire({ ...options, ...(fromMessage || {}), ...extras }).then((result) => result.isConfirmed)
+  return Swal.fire(options).then((result) => result.isConfirmed)
 }
 
 const installTurboOverride = (Swal) => {
