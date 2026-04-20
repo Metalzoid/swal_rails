@@ -11,10 +11,13 @@ RSpec.describe SwalRails do
 
   describe ".configure" do
     it "yields the configuration" do
+      original = described_class.configuration.confirm_mode
       described_class.configure do |config|
         config.confirm_mode = :turbo_override
       end
       expect(described_class.configuration.confirm_mode).to eq(:turbo_override)
+    ensure
+      described_class.configuration.confirm_mode = original
     end
   end
 end
