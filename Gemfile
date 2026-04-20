@@ -22,7 +22,7 @@ group :development, :test do
   gem "cuprite", "~> 0.15"
   gem "puma", "~> 6.4"
   gem "rspec", "~> 3.12"
-  gem "rspec-rails", "~> 6.1"
+  gem "rspec-rails", "~> 8.0"
   gem "rubocop", "~> 1.60", require: false
   gem "rubocop-rspec", require: false
   gem "sqlite3", "~> 1.7"
