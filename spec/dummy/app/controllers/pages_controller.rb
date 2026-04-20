@@ -14,6 +14,13 @@ class PagesController < ApplicationController
     redirect_to root_path
   end
 
+  def show_custom
+    # Per-request override: Hash value carries full SA2 options, bypassing
+    # the default flash_map mapping.
+    flash[:notice] = { text: "Custom bam", icon: "question", toast: false, timer: nil }
+    redirect_to root_path
+  end
+
   def confirm_page
     render :confirm
   end

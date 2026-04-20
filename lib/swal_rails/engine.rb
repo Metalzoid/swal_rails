@@ -20,6 +20,9 @@ module SwalRails
           sweetalert2.esm.js sweetalert2.esm.min.js
           sweetalert2.esm.all.js sweetalert2.esm.all.min.js
           sweetalert2.css sweetalert2.min.css
+          themes/bootstrap-4.css themes/bootstrap-5.css
+          themes/borderless.css themes/bulma.css
+          themes/material-ui.css themes/minimal.css
           swal_rails/index.js swal_rails/confirm.js swal_rails/flash.js
           swal_rails/controllers/swal_controller.js
         ]
