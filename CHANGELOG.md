@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-20
+
+### Changed
+- Release workflow now also triggers on push to `main`: when the version in `lib/swal_rails/version.rb` advances past the last `v*` tag, the workflow creates and pushes the tag, then runs the existing build / GitHub Release / GitHub Packages publish steps in the same job. Tag pushes keep working unchanged.
+
 ## [0.2.0] - 2026-04-20
 
 ### Added
