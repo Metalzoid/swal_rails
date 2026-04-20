@@ -21,52 +21,22 @@ module SwalRails
       return unless SwalRails.configuration.flash_keys_as_meta
       return if flash.blank?
 
-      payload = build_flash_payload
+      payload = flash.to_h.filter_map do |key, message|
+        next if message.blank?
+
+        { key: key.to_s, message: message.to_s }
+      end
       return if payload.empty?
 
       tag.meta(name: "swal-flash", content: payload.to_json)
     end
 
-    # Rails idiom: `flash[:notice] = model.errors.full_messages` — expand arrays
-    # into one entry per message so each fires its own Swal.
-    #
-    # Also accepts per-request option overrides:
-    #   flash[:notice] = "Saved"                                       # string shortcut
-    #   flash[:notice] = { text: "Saved", icon: "star", timer: 5000 }  # full SA2 options
-    def build_flash_payload
-      flash.to_h.flat_map do |key, message|
-        flash_messages(message).filter_map do |m|
-          next if m.blank?
-
-          options = m.is_a?(Hash) ? m.symbolize_keys : { text: m.to_s }
-          { key: key.to_s, options: options }
-        end
-      end
-    end
-
-    # Arrays expand into one entry per element. A Hash is a single entry —
-    # don't let `Array(hash)` destructure it into key/value pairs.
-    def flash_messages(message)
-      message.is_a?(Array) ? message : [message]
-    end
-
     # Generates an inline `<script>` that fires a single Swal.
-    #
     # Usage: `<%= swal_tag(title: "Hi", icon: "info") %>`
-    # Under a strict CSP: `<%= swal_tag({ title: "Hi" }, nonce: true) %>`
-    #
-    # When `nonce: true` is passed and ActionView's CSP helper is available,
-    # Rails substitutes the per-request nonce so the tag survives a
-    # `script-src 'self' 'nonce-…'` policy.
-    def swal_tag(options = {}, html_options = {})
-      # json_escape neutralizes `</script>`, `<!--`, U+2028 and U+2029 —
-      # the four sequences that can break out of a <script> block.
-      payload = ERB::Util.json_escape(options.to_json)
-      tag_options = { type: "module" }.merge(html_options)
-      tag_options.delete(:nonce) if tag_options[:nonce] == true && !respond_to?(:content_security_policy_nonce, true)
-      javascript_tag(<<~JS.strip, **tag_options)
+    def swal_tag(options = {})
+      javascript_tag(<<~JS.strip, type: "module")
         import Swal from "sweetalert2";
-        Swal.fire(#{payload});
+        Swal.fire(#{options.to_json});
       JS
     end
   end
