@@ -24,19 +24,27 @@ const buildMixin = (config) => {
   return base
 }
 
-const boot = () => {
-  const config = readMeta("swal-config") || {}
-  const Mixin = Swal.mixin(buildMixin(config))
+// Module-scoped so repeated calls to boot() (DOMContentLoaded + every
+// turbo:load) don't stack a new click/submit listener per navigation.
+let booted = null
 
-  if (config.exposeWindowSwal !== false) {
-    window.Swal = Mixin
+const boot = () => {
+  if (!booted) {
+    const config = readMeta("swal-config") || {}
+    const Mixin = Swal.mixin(buildMixin(config))
+
+    if (config.exposeWindowSwal !== false) {
+      window.Swal = Mixin
+    }
+
+    installConfirm(Mixin, config)
+    booted = { Swal: Mixin, config }
+    document.dispatchEvent(new CustomEvent("swal-rails:ready", { detail: booted }))
   }
 
-  installConfirm(Mixin, config)
-  installFlash(Mixin, config)
-
-  document.dispatchEvent(new CustomEvent("swal-rails:ready", { detail: { Swal: Mixin, config } }))
-  return Mixin
+  // Flash meta is re-rendered per request, so read and fire on every page.
+  installFlash(booted.Swal, booted.config)
+  return booted.Swal
 }
 
 const ready = (fn) => {
