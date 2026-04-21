@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1.beta1] - 2026-04-21
+
+### Changed
+- First public release on [RubyGems.org](https://rubygems.org/gems/swal_rails). Prior `0.x` tags lived on GitHub Packages only.
+- Release workflow now publishes to RubyGems via [Trusted Publishing](https://guides.rubygems.org/trusted-publishing/) (OIDC), no long-lived API key.
+
+### Security
+- `.gitignore` hardened preventively against `.env`, `master.key`, `config/credentials/*.key`, `*.pem`, `*.key`.
+- Gemspec now pins `allowed_push_host` to `https://rubygems.org` as a safety net against accidental push to other hosts.
+
 ## [0.3.0] - 2026-04-21
 
 ### Added

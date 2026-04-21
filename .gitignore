@@ -13,3 +13,11 @@ gemfiles/*.gemfile.lock
 
 # rspec failure tracking
 .rspec_status
+
+# secrets (preventive — nothing to clean from history, keep it that way)
+.env
+.env.*
+/config/master.key
+/config/credentials/*.key
+*.pem
+*.key
