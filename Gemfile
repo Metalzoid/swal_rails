@@ -25,5 +25,5 @@ group :development, :test do
   gem "rspec-rails", "~> 8.0"
   gem "rubocop", "~> 1.60", require: false
   gem "rubocop-rspec", require: false
-  gem "sqlite3", "~> 1.7"
+  gem "sqlite3", "~> 2.9"
 end
