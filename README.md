@@ -119,6 +119,12 @@ Add this line to your application's `Gemfile`:
 gem "swal_rails"
 ```
 
+> **During the beta**, pin the prerelease explicitly:
+> ```ruby
+> gem "swal_rails", "0.3.1.beta1"
+> ```
+> or install globally with `gem install swal_rails --pre`. Bundler ignores prereleases unless you ask for one.
+
 Then install and run the generator:
 
 ```bash

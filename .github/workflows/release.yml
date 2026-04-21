@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -71,11 +71,10 @@ jobs:
             --generate-notes \
             swal_rails-*.gem
 
-      - name: Publish to GitHub Packages
+      - name: Configure RubyGems credentials (OIDC)
         if: steps.tag.outputs.should_release == 'true'
-        env:
-          GEM_HOST_API_KEY: "Bearer ${{ secrets.GITHUB_TOKEN }}"
-        run: |
-          gem push --key github \
-                   --host https://rubygems.pkg.github.com/${{ github.repository_owner }} \
-                   swal_rails-*.gem
+        uses: rubygems/configure-rubygems-credentials@main
+
+      - name: Publish to RubyGems
+        if: steps.tag.outputs.should_release == 'true'
+        run: gem push swal_rails-*.gem

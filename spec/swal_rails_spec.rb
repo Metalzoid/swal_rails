@@ -2,7 +2,7 @@
 
 RSpec.describe SwalRails do
   it "has a version number" do
-    expect(SwalRails::VERSION).to match(/\A\d+\.\d+\.\d+\z/)
+    expect(SwalRails::VERSION).to match(/\A\d+\.\d+\.\d+(\.[a-z]+\d*)?\z/)
   end
 
   it "pins a SweetAlert2 version" do
