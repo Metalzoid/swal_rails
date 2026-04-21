@@ -20,7 +20,7 @@ group :development, :test do
   gem "appraisal", "~> 2.5"
   gem "capybara", "~> 3.40"
   gem "cuprite", "~> 0.15"
-  gem "puma", "~> 6.4"
+  gem "puma", "~> 8.0"
   gem "rspec", "~> 3.12"
   gem "rspec-rails", "~> 8.0"
   gem "rubocop", "~> 1.60", require: false
