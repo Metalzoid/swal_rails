@@ -31,6 +31,7 @@ Ruby view helpers, and full I18n. Everything is configurable.
   - [Flash messages](#flash-messages)
   - [Turbo confirmations](#turbo-confirmations)
   - [`data-swal-confirm` attribute](#data-swal-confirm-attribute)
+  - [Multi-step confirmations](#multi-step-confirmations)
   - [Stimulus controller](#stimulus-controller)
   - [Ruby view helpers](#ruby-view-helpers)
   - [Programmatic JS](#programmatic-js)
@@ -298,6 +299,85 @@ accepts any SweetAlert2 option:
 
 ---
 
+### Multi-step confirmations
+
+For destructive flows (account deletion, legal opt-ins, irreversible
+actions), chain several popups via `data-swal-steps`. Each step only
+fires if the previous one was **confirmed** — any Cancel or Esc aborts
+the whole cascade, and the original click/submit never reaches the
+server:
+
+```erb
+<%= button_to "Delete account", account_path, method: :delete, data: {
+      swal_steps: [
+        { title: "Delete your account?", icon: "warning" },
+        { title: "This cannot be undone", icon: "error" },
+        { title: "Type DELETE to confirm", input: "text" }
+      ].to_json
+    } %>
+```
+
+Every step is a full SweetAlert2 options Hash — override the default
+icon, buttons, timer, `input:` type, anything SA2 accepts. The per-step
+defaults (`showCancelButton: true`, `focusCancel: true`, `icon: "warning"`)
+are merged in first and can be replaced key-by-key.
+
+#### Conditional branching (`onConfirmed` / `onDenied`)
+
+Add a Deny button (`showDenyButton: true`) to get a three-way choice, and
+attach a nested sub-chain to either outcome:
+
+```erb
+<%= button_to "Delete or disable?", account_path, method: :delete, data: {
+      swal_steps: [
+        {
+          title: "Delete or just disable?",
+          icon: "question",
+          showDenyButton: true,
+          confirmButtonText: "Delete forever",
+          denyButtonText:    "Disable for 30 days",
+          onDenied: [
+            { title: "Confirm disable", icon: "info" }
+          ]
+        }
+      ].to_json
+    } %>
+```
+
+Semantic rules, per step:
+
+| SA2 result    | Behavior |
+| ------------- | -------- |
+| `isDismissed` | Abort the entire chain; action does not fire |
+| `isConfirmed` | Run `onConfirmed` sub-chain if present (replaces remainder); else continue linearly |
+| `isDenied`    | Run `onDenied` sub-chain if present (its result decides); else abort |
+
+Sub-chains are recursive — they're just nested arrays of steps.
+
+Under `confirm_mode = :turbo_override` (or `:both`), passing a JSON array
+to `data-turbo-confirm` works the same way:
+
+```erb
+<%= button_to "Delete", account_path, method: :delete, data: {
+      turbo_confirm: [
+        { title: "Really?" },
+        { title: "Really really?" }
+      ]
+    } %>
+```
+
+From Ruby, the view helper `swal_chain_tag` fires a chain inline on page
+load (same CSP nonce and XSS hardening as `swal_tag`):
+
+```erb
+<%= swal_chain_tag([
+      { title: "Welcome back" },
+      { title: "Accept updated terms?" }
+    ]) %>
+```
+
+---
+
 ### Stimulus controller
 
 For fully declarative popups without touching JS:
@@ -310,7 +390,9 @@ For fully declarative popups without touching JS:
 </button>
 ```
 
-Available actions: `fire`, `confirm`.
+Available actions: `fire`, `confirm`, `chain`. The `chain` action reads
+`data-swal-steps-value` (same shape as `data-swal-steps`) and submits the
+enclosing form if every step resolves confirmed.
 
 ---
 

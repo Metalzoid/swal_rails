@@ -138,6 +138,50 @@ RSpec.describe SwalRails::Helpers do
     end
   end
 
+  describe "#swal_chain_tag" do
+    it "renders an ES module script that imports chainDialogs" do
+      out = view.swal_chain_tag([{ title: "A" }, { title: "B" }])
+      expect(out).to include('type="module"')
+      expect(out).to include('import { chainDialogs } from "swal_rails/chain"')
+      expect(out).to include("chainDialogs(Swal,")
+      expect(out).to include('[{"title":"A"},{"title":"B"}]')
+    end
+
+    it "wraps a single Hash step via Array()" do
+      out = view.swal_chain_tag(title: "Solo")
+      expect(out).to include('[{"title":"Solo"}]')
+    end
+
+    it "neutralizes a </script> breakout attempt inside a step" do
+      out = view.swal_chain_tag([{ title: "pwn</script><script>alert(1)</script>" }])
+      expect(out).not_to include("</script><script>alert(1)")
+      expect(out).to include('\u003c/script')
+    end
+
+    it "preserves onConfirmed / onDenied nested sub-chains verbatim in the payload" do
+      out = view.swal_chain_tag([
+                                  { title: "Choice", onConfirmed: [{ title: "Yes branch" }],
+                                    onDenied: [{ title: "No branch" }] }
+                                ])
+      expect(out).to include('"onConfirmed":[{"title":"Yes branch"}]')
+      expect(out).to include('"onDenied":[{"title":"No branch"}]')
+    end
+
+    it "omits nonce=true silently when no CSP helper is present" do
+      out = view.swal_chain_tag([{ title: "Hi" }], nonce: true)
+      expect(out).to include('type="module"')
+      expect(out).not_to include("nonce=")
+    end
+
+    it "propagates the CSP nonce when the helper is available" do
+      csp_view = Class.new(klass) do
+        def content_security_policy_nonce = "xyz789"
+      end.new
+      out = csp_view.swal_chain_tag([{ title: "Hi" }], nonce: true)
+      expect(out).to include('nonce="xyz789"')
+    end
+  end
+
   describe "XSS hardening on meta tags" do
     it "html-escapes attribute payload for swal_flash_meta_tag" do
       view.flash = { "alert" => 'evil"><img src=x onerror=alert(1)>' }

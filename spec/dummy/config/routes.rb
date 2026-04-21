@@ -7,5 +7,7 @@ Rails.application.routes.draw do
   get  "/alert",  to: "pages#show_alert"
   get  "/custom_flash", to: "pages#show_custom"
   get  "/confirm", to: "pages#confirm_page"
+  get  "/chain",   to: "pages#chain_page"
   delete "/items/:id", to: "pages#destroy", as: :item
+  delete "/items_chain/:id", to: "pages#destroy_chain", as: :item_chain
 end

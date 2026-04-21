@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Multi-step confirm chains** — `data-swal-steps='[{...}, {...}]'` (JSON array) runs each step sequentially and only proceeds with the original click/submit if every step is confirmed. Each step is a full SweetAlert2 options Hash, with per-step defaults (`showCancelButton`, `focusCancel`, `icon: "warning"`) merged in first.
+- **Conditional branching** via `onConfirmed` / `onDenied` sub-chains on any step — opt in to a Deny button with `showDenyButton: true` to get a three-way choice; nested sub-chains are recursive. `isDismissed` always aborts.
+- `data-turbo-confirm` (under `:turbo_override` / `:both`) now also accepts a JSON array, firing a chain via the Turbo override path.
+- Stimulus controller gains a `chain` action reading `data-swal-steps-value`; submits the enclosing form when the chain resolves confirmed.
+- Ruby view helper `swal_chain_tag(steps, html_options = {})` — symmetric with `swal_tag`, same `ERB::Util.json_escape` hardening and CSP nonce handling.
+
 ### Fixed
 - `boot()` is now idempotent across `turbo:load` events: on Turbo-driven navigations the capture-phase click/submit listeners are installed exactly once for the page lifetime, instead of stacking one additional listener per navigation. Previously, after N Turbo visits a single `[data-swal-confirm]` click opened N cascading modals.
 - Confirm → form submit path now calls `form.requestSubmit()` when available (falling back to `form.submit()`), so Turbo and UJS `submit` listeners stay in the loop.

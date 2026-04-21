@@ -1,0 +1,56 @@
+<h1 id="chain-title">Chain page</h1>
+
+<%# Linear 2-step chain — action fires only if both are confirmed. %>
+<%= button_to "Delete (2 steps)",
+      item_chain_path(1),
+      method: :delete,
+      data: {
+        swal_steps: [
+          { title: "Delete step 1?", icon: "warning" },
+          { title: "Really delete step 2?", icon: "error" }
+        ].to_json
+      },
+      id: "chain-linear-btn" %>
+
+<%# onDenied sub-chain — pressing Deny runs a short sub-chain; its result
+    decides whether the action proceeds. %>
+<%= button_to "Delete with Deny branch",
+      item_chain_path(2),
+      method: :delete,
+      data: {
+        swal_steps: [
+          {
+            title: "Delete or just hide?",
+            icon: "question",
+            showDenyButton: true,
+            confirmButtonText: "Delete",
+            denyButtonText: "Hide instead",
+            onDenied: [
+              { title: "Confirm hide?", icon: "info" }
+            ]
+          }
+        ].to_json
+      },
+      id: "chain-denied-btn" %>
+
+<%# onConfirmed sub-chain — first step's Confirm path replaces the remainder
+    of the outer chain with a nested sub-chain. %>
+<%= button_to "Delete with Confirm branch",
+      item_chain_path(3),
+      method: :delete,
+      data: {
+        swal_steps: [
+          {
+            title: "Admin path or user path?",
+            icon: "question",
+            confirmButtonText: "Admin",
+            cancelButtonText: "Cancel",
+            onConfirmed: [
+              { title: "Admin confirmation 1", icon: "warning" },
+              { title: "Admin confirmation 2", icon: "error" }
+            ]
+          },
+          { title: "User step — should not show if Admin was chosen", icon: "info" }
+        ].to_json
+      },
+      id: "chain-confirmed-btn" %>

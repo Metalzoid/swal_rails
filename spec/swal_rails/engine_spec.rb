@@ -18,6 +18,7 @@ RSpec.describe SwalRails::Engine do
       expect(precompile).to include("swal_rails/index.js")
       expect(precompile).to include("swal_rails/confirm.js")
       expect(precompile).to include("swal_rails/flash.js")
+      expect(precompile).to include("swal_rails/chain.js")
       expect(precompile).to include("swal_rails/controllers/swal_controller.js")
     end
   end

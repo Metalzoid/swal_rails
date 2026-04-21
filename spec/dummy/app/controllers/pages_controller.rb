@@ -25,8 +25,17 @@ class PagesController < ApplicationController
     render :confirm
   end
 
+  def chain_page
+    render :chain
+  end
+
   def destroy
     flash[:notice] = "Deleted item ##{params[:id]}"
+    redirect_to root_path
+  end
+
+  def destroy_chain
+    flash[:notice] = "Chained delete ##{params[:id]}"
     redirect_to root_path
   end
 end
