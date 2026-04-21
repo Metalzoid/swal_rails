@@ -10,8 +10,8 @@ Ruby view helpers, and full I18n. Everything is configurable.
 
 [![CI](https://github.com/Metalzoid/swal_rails/actions/workflows/main.yml/badge.svg)](https://github.com/Metalzoid/swal_rails/actions)
 [![Gem Version](https://badge.fury.io/rb/swal_rails.svg)](https://rubygems.org/gems/swal_rails)
-[![Ruby](https://img.shields.io/badge/ruby-3.2%20%E2%86%92%204.0-CC342D.svg)](https://www.ruby-lang.org/)
-[![Rails](https://img.shields.io/badge/rails-7.2%20%E2%86%92%208.1.3-CC0000.svg)](https://rubyonrails.org/)
+[![Ruby](https://img.shields.io/gem/ruby-version/swal_rails?label=ruby)](https://www.ruby-lang.org/)
+[![Rails](https://img.shields.io/gem/dv/swal_rails/railties?label=rails)](https://rubyonrails.org/)
 [![SweetAlert2](https://img.shields.io/badge/SweetAlert2-v11.26-3085d6.svg)](https://sweetalert2.github.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
 
