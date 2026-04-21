@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-21
+
 ### Added
 - **Multi-step confirm chains** — `data-swal-steps='[{...}, {...}]'` (JSON array) runs each step sequentially and only proceeds with the original click/submit if every step is confirmed. Each step is a full SweetAlert2 options Hash, with per-step defaults (`showCancelButton`, `focusCancel`, `icon: "warning"`) merged in first.
 - **Conditional branching** via `onConfirmed` / `onDenied` sub-chains on any step — opt in to a Deny button with `showDenyButton: true` to get a three-way choice; nested sub-chains are recursive. `isDismissed` always aborts.
