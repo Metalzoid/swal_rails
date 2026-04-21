@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `boot()` is now idempotent across `turbo:load` events: on Turbo-driven navigations the capture-phase click/submit listeners are installed exactly once for the page lifetime, instead of stacking one additional listener per navigation. Previously, after N Turbo visits a single `[data-swal-confirm]` click opened N cascading modals.
+- Confirm → form submit path now calls `form.requestSubmit()` when available (falling back to `form.submit()`), so Turbo and UJS `submit` listeners stay in the loop.
+
+### Security
+- Documented the Hash-form escape hatch: when a Hash is assigned to `flash[key]`, `data-turbo-confirm`, `data-swal-confirm` or `data-swal-options`, its keys (notably `html:`, `iconHtml:`, `footer:`) flow unescaped into SweetAlert2. The String form keeps payloads in `text:` and remains XSS-safe by default.
+
 ## [0.2.1] - 2026-04-20
 
 ### Changed

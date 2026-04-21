@@ -41,4 +41,19 @@ RSpec.describe "Confirm integration", type: :system, js: true do
     expect(page).to have_css(".swal2-icon-info")
     expect(page).to have_button("Yep")
   end
+
+  it "does not stack listeners when turbo:load fires multiple times" do
+    # Regression: boot() used to re-install the capture-phase click listener
+    # on every turbo:load. After N Turbo navigations a single click fired N
+    # cascading modals. With the fix, the confirm handlers install once.
+    visit "/confirm"
+    3.times { page.execute_script("document.dispatchEvent(new Event('turbo:load'))") }
+
+    find("#delete-btn").click
+    expect(page).to have_css(".swal2-popup", count: 1, wait: 5)
+    within(".swal2-actions") { click_on("Cancel") }
+
+    # A stacked second listener would immediately open another popup.
+    expect(page).to have_no_css(".swal2-popup", wait: 2)
+  end
 end

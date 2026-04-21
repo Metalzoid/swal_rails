@@ -329,6 +329,12 @@ the per-request nonce so the inline `<script>` survives the policy:
 <%= swal_tag({ title: "Welcome back!" }, nonce: true) %>
 ```
 
+> **Heads-up:** the emitted tag is `<script type="module">` with a bare
+> `import Swal from "sweetalert2"`. That resolves via Importmap (or any
+> shim that processes import maps). On a pure esbuild/webpack setup with
+> no importmap tag on the page, prefer the Stimulus controller or call
+> `window.Swal.fire(...)` from your bundle instead.
+
 Lower-level helpers (injected by the generator into your layout):
 
 ```erb
@@ -409,6 +415,13 @@ breakout sequences:
   attributes, which Rails HTML-escapes automatically; the JS runtime feeds
   messages to SweetAlert2's `text:` option (not `html:`), so flash payloads
   are rendered as text even if they contain HTML.
+
+> ⚠️ **Hash-form overrides bypass the `text:` safety net.** When you pass a
+> Hash to `flash[key]`, `data-turbo-confirm`, `data-swal-confirm`, or
+> `data-swal-options`, its keys flow straight into `Swal.fire`. Using
+> `html:`, `iconHtml:`, or `footer:` with untrusted input is an XSS —
+> SweetAlert2 renders those as raw HTML by design. Rule of thumb: if the
+> value is user-controlled, keep the String form (or the `text:` key).
 
 ### Content Security Policy
 

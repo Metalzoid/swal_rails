@@ -55,7 +55,10 @@ const installDataAttribute = (Swal) => {
       if (typeof el.click === "function" && event.type === "click") {
         el.click()
       } else if (el.tagName === "FORM") {
-        el.submit()
+        // requestSubmit() fires the 'submit' event, so Turbo and any UJS
+        // handlers stay in the loop — unlike the raw .submit() which skips them.
+        if (typeof el.requestSubmit === "function") el.requestSubmit()
+        else el.submit()
       }
     })
   }
