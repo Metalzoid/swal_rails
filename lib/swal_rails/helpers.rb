@@ -69,5 +69,28 @@ module SwalRails
         Swal.fire(#{payload});
       JS
     end
+
+    # Fires a multi-step confirm chain inline on page load.
+    #
+    # Usage: `<%= swal_chain_tag([{ title: "Sure?" }, { title: "Really?" }]) %>`
+    # Under a strict CSP: `<%= swal_chain_tag(steps, nonce: true) %>`
+    #
+    # Same XSS hardening and CSP nonce handling as `swal_tag`. Each step is
+    # a full SweetAlert2 options Hash; `onConfirmed:` / `onDenied:` keys
+    # declare nested sub-chains for conditional branching.
+    def swal_chain_tag(steps, html_options = {})
+      # Array(hash) destructures a Hash into [[k, v], ...] pairs — wrap
+      # single Hash steps manually so shorthand `swal_chain_tag(title: "Hi")`
+      # produces `[{"title":"Hi"}]`, not `[["title","Hi"]]`.
+      steps = [steps] unless steps.is_a?(Array)
+      payload = ERB::Util.json_escape(steps.to_json)
+      tag_options = { type: "module" }.merge(html_options)
+      tag_options.delete(:nonce) if tag_options[:nonce] == true && !respond_to?(:content_security_policy_nonce, true)
+      javascript_tag(<<~JS.strip, **tag_options)
+        import Swal from "sweetalert2";
+        import { chainDialogs } from "swal_rails/chain";
+        chainDialogs(Swal, #{payload});
+      JS
+    end
   end
 end

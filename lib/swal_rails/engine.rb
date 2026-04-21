@@ -23,7 +23,7 @@ module SwalRails
           themes/bootstrap-4.css themes/bootstrap-5.css
           themes/borderless.css themes/bulma.css
           themes/material-ui.css themes/minimal.css
-          swal_rails/index.js swal_rails/confirm.js swal_rails/flash.js
+          swal_rails/index.js swal_rails/confirm.js swal_rails/flash.js swal_rails/chain.js
           swal_rails/controllers/swal_controller.js
         ]
       end

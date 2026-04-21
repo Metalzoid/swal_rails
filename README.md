@@ -31,9 +31,19 @@ Ruby view helpers, and full I18n. Everything is configurable.
   - [Flash messages](#flash-messages)
   - [Turbo confirmations](#turbo-confirmations)
   - [`data-swal-confirm` attribute](#data-swal-confirm-attribute)
+  - [Multi-step confirmations](#multi-step-confirmations)
   - [Stimulus controller](#stimulus-controller)
   - [Ruby view helpers](#ruby-view-helpers)
   - [Programmatic JS](#programmatic-js)
+- [Reference](#-reference)
+  - [`SwalRails.configure`](#swalrailsconfigure)
+  - [View helpers](#view-helpers)
+  - [Data attributes](#data-attributes)
+  - [Stimulus controller reference](#stimulus-controller-reference)
+  - [JS runtime](#js-runtime)
+  - [Generators](#generators)
+  - [Flash value shapes](#flash-value-shapes)
+  - [Chain semantics](#chain-semantics)
 - [I18n](#-i18n)
 - [Accessibility](#-accessibility)
 - [Security & CSP](#-security--csp)
@@ -298,6 +308,85 @@ accepts any SweetAlert2 option:
 
 ---
 
+### Multi-step confirmations
+
+For destructive flows (account deletion, legal opt-ins, irreversible
+actions), chain several popups via `data-swal-steps`. Each step only
+fires if the previous one was **confirmed** — any Cancel or Esc aborts
+the whole cascade, and the original click/submit never reaches the
+server:
+
+```erb
+<%= button_to "Delete account", account_path, method: :delete, data: {
+      swal_steps: [
+        { title: "Delete your account?", icon: "warning" },
+        { title: "This cannot be undone", icon: "error" },
+        { title: "Type DELETE to confirm", input: "text" }
+      ].to_json
+    } %>
+```
+
+Every step is a full SweetAlert2 options Hash — override the default
+icon, buttons, timer, `input:` type, anything SA2 accepts. The per-step
+defaults (`showCancelButton: true`, `focusCancel: true`, `icon: "warning"`)
+are merged in first and can be replaced key-by-key.
+
+#### Conditional branching (`onConfirmed` / `onDenied`)
+
+Add a Deny button (`showDenyButton: true`) to get a three-way choice, and
+attach a nested sub-chain to either outcome:
+
+```erb
+<%= button_to "Delete or disable?", account_path, method: :delete, data: {
+      swal_steps: [
+        {
+          title: "Delete or just disable?",
+          icon: "question",
+          showDenyButton: true,
+          confirmButtonText: "Delete forever",
+          denyButtonText:    "Disable for 30 days",
+          onDenied: [
+            { title: "Confirm disable", icon: "info" }
+          ]
+        }
+      ].to_json
+    } %>
+```
+
+Semantic rules, per step:
+
+| SA2 result    | Behavior |
+| ------------- | -------- |
+| `isDismissed` | Abort the entire chain; action does not fire |
+| `isConfirmed` | Run `onConfirmed` sub-chain if present (replaces remainder); else continue linearly |
+| `isDenied`    | Run `onDenied` sub-chain if present (its result decides); else abort |
+
+Sub-chains are recursive — they're just nested arrays of steps.
+
+Under `confirm_mode = :turbo_override` (or `:both`), passing a JSON array
+to `data-turbo-confirm` works the same way:
+
+```erb
+<%= button_to "Delete", account_path, method: :delete, data: {
+      turbo_confirm: [
+        { title: "Really?" },
+        { title: "Really really?" }
+      ]
+    } %>
+```
+
+From Ruby, the view helper `swal_chain_tag` fires a chain inline on page
+load (same CSP nonce and XSS hardening as `swal_tag`):
+
+```erb
+<%= swal_chain_tag([
+      { title: "Welcome back" },
+      { title: "Accept updated terms?" }
+    ]) %>
+```
+
+---
+
 ### Stimulus controller
 
 For fully declarative popups without touching JS:
@@ -310,7 +399,9 @@ For fully declarative popups without touching JS:
 </button>
 ```
 
-Available actions: `fire`, `confirm`.
+Available actions: `fire`, `confirm`, `chain`. The `chain` action reads
+`data-swal-steps-value` (same shape as `data-swal-steps`) and submits the
+enclosing form if every step resolves confirmed.
 
 ---
 
@@ -364,6 +455,301 @@ Swal.fire({
 
 If `config.expose_window_swal = true`, `window.Swal` is also available for
 quick console debugging.
+
+---
+
+## 📘 Reference
+
+Complete, at-a-glance specification of every public surface the gem
+exposes. The sections above give narrative walk-throughs — this section
+is the lookup table.
+
+### `SwalRails.configure`
+
+```ruby
+SwalRails.configure { |config| ... }       # block form, yields Configuration
+SwalRails.configuration                    # reader — memoized, safe to mutate
+SwalRails.reset_configuration!             # resets to defaults (test fixture helper)
+```
+
+#### Configuration attributes
+
+| Attribute                | Type    | Default            | Description |
+| ------------------------ | ------- | ------------------ | ----------- |
+| `confirm_mode`           | Symbol  | `:data_attribute`  | Routing of confirm dialogs — see values below. Validated: assignment with any other value raises `ArgumentError`. Strings are coerced to symbols. |
+| `flash_keys_as_meta`     | Boolean | `true`             | When `false`, `swal_flash_meta_tag` returns `nil` — useful to opt out without removing the `swal_rails_meta_tags` call from the layout. |
+| `respect_reduced_motion` | Boolean | `true`             | When the OS reports `prefers-reduced-motion: reduce`, the gem empties SA2's `showClass` / `hideClass` to suppress animations. |
+| `expose_window_swal`     | Boolean | `true`             | When `true`, `window.Swal` is set to the mixed-in `Swal` instance after boot (useful for console debugging and inline scripts). |
+| `default_options`        | Hash    | see below          | Merged into **every** `Swal.fire(...)` call via `Swal.mixin(...)`. |
+| `flash_map`              | Hash    | see below          | Flash-key → SA2 options mapping. Keys normalized to symbols. Non-Hash assignment raises `ArgumentError`. |
+| `i18n_scope`             | String  | `"swal_rails"`     | I18n scope used to look up `confirm_button_text`, `cancel_button_text`, `deny_button_text`, `close_button_aria_label`. Non-string values are coerced. |
+
+`confirm_mode` accepted values:
+
+| Value              | Behavior |
+| ------------------ | -------- |
+| `:off`             | No Turbo override, no data-attribute listener. Use `Swal` manually. |
+| `:data_attribute`  | **(default)** intercept clicks/submits on `[data-swal-confirm]` and `[data-swal-steps]`. Does not touch Turbo. |
+| `:turbo_override`  | Replaces `Turbo.setConfirmMethod` globally. `data-turbo-confirm` attributes open SA2 modals. |
+| `:both`            | Enables both mechanisms — useful for mixed codebases migrating over. |
+
+`default_options` default:
+
+```ruby
+{ buttonsStyling: true, reverseButtons: false, focusConfirm: true, returnFocus: true }
+```
+
+`flash_map` default (per key, all overridable):
+
+```ruby
+{
+  notice:  { icon: "success", toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
+  success: { icon: "success", toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
+  alert:   { icon: "error",   toast: false, timer: nil },
+  error:   { icon: "error",   toast: false, timer: nil },
+  warning: { icon: "warning", toast: true,  position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+  info:    { icon: "info",    toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
+}
+```
+
+#### `to_client_payload` (internal, read-only)
+
+Serialization contract consumed by the JS runtime via the
+`<meta name="swal-config">` tag. Returns:
+
+```ruby
+{
+  confirmMode:          Symbol,
+  respectReducedMotion: Boolean,
+  exposeWindowSwal:     Boolean,
+  defaultOptions:       Hash,
+  flashMap:             Hash,
+  i18n:                 Hash   # only keys whose translation is present
+}
+```
+
+---
+
+### View helpers
+
+All helpers are injected into both `ActionController::Base` and
+`ActionView::Base` by the engine; they are available in every view and
+in every controller-side rendering context.
+
+| Helper                             | Returns                                   | Description |
+| ---------------------------------- | ----------------------------------------- | ----------- |
+| `swal_rails_meta_tags`             | `ActiveSupport::SafeBuffer`               | Emits `swal_config_meta_tag` + `swal_flash_meta_tag` joined with `"\n"`. Call once, in `<head>`. |
+| `swal_config_meta_tag`             | `ActiveSupport::SafeBuffer`               | Emits `<meta name="swal-config" content="…JSON…">` with the serialized `SwalRails.configuration.to_client_payload`. |
+| `swal_flash_meta_tag`              | `ActiveSupport::SafeBuffer` or `nil`      | Emits `<meta name="swal-flash" content="…JSON…">` if `flash_keys_as_meta` is enabled **and** the current `flash` is non-empty; otherwise returns `nil`. |
+| `swal_tag(options, html_options)`  | `ActiveSupport::SafeBuffer`               | Inline `<script type="module">` firing `Swal.fire(options)` once. Options are JSON-escaped to neutralize `</script>`, `<!--`, U+2028, U+2029. |
+| `swal_chain_tag(steps, html_options)` | `ActiveSupport::SafeBuffer`            | Inline `<script type="module">` firing `chainDialogs(Swal, steps)`. `steps` is an Array of Hashes (single Hash is auto-wrapped). Same escape hardening as `swal_tag`. |
+
+#### `html_options` (for `swal_tag` / `swal_chain_tag`)
+
+- `nonce: true` → propagates the per-request CSP nonce (when Rails
+  exposes `content_security_policy_nonce`). Silently dropped when no CSP
+  helper is configured, so the helper stays safe in apps without CSP.
+- Any other key is forwarded to `javascript_tag` as `<script>`
+  attributes.
+
+The default `type` is `"module"` — override with `html_options = { type: "text/javascript" }` if you need a classic script.
+
+> ⚠️ The emitted `<script type="module">` contains bare imports
+> (`import Swal from "sweetalert2"`). These resolve via Importmap; in a
+> pure esbuild/webpack setup with no importmap tag on the page, call
+> `window.Swal.fire(...)` from your bundle instead.
+
+---
+
+### Data attributes
+
+All attributes are read from the element's `dataset`. Values carry through `button_to`, `link_to`, `form_with`, and raw HTML equally.
+
+#### Single-step confirm (`data-swal-confirm`)
+
+| Attribute                 | Accepts                      | Maps to (SA2 option) |
+| ------------------------- | ---------------------------- | -------------------- |
+| `data-swal-confirm`       | String **or** JSON object *or* JSON array | message (String) → `text`; Object → full SA2 options (overrides all shortcuts); Array → multi-step chain (see below) |
+| `data-swal-title`         | String                       | `title` |
+| `data-swal-text`          | String                       | `text` |
+| `data-swal-icon`          | String (`"warning"`, `"error"`, …) | `icon` (default `"warning"`) |
+| `data-swal-confirm-text`  | String                       | `confirmButtonText` |
+| `data-swal-cancel-text`   | String                       | `cancelButtonText` |
+| `data-swal-options`       | JSON Object (stringified)    | Full SA2 options — **wins over** all shortcuts and over the JSON object form of `data-swal-confirm` |
+
+Merge order (later wins):
+
+```
+defaults → data-swal-* shortcuts → JSON object in data-swal-confirm → data-swal-options
+```
+
+#### Multi-step chain (`data-swal-steps`)
+
+| Attribute                 | Accepts                                | Behavior |
+| ------------------------- | -------------------------------------- | -------- |
+| `data-swal-steps`         | JSON Array of step Hashes (stringified) | Runs the chain. Per-step defaults `{ showCancelButton: true, focusCancel: true, icon: "warning" }` are merged first and can be overridden key-by-key. Every step is a full SA2 options Hash plus the optional `onConfirmed` / `onDenied` sub-chain keys. |
+
+Both attributes coexist — if `data-swal-steps` is present and non-empty, it takes precedence over `data-swal-confirm`.
+
+#### Turbo `data-turbo-confirm`
+
+When `confirm_mode` is `:turbo_override` or `:both`, `data-turbo-confirm` accepts:
+
+| Form    | Behavior |
+| ------- | -------- |
+| String  | SA2 popup with the string as `text`. |
+| Hash (JSON-encoded by Rails) | Full SA2 options. |
+| Array (JSON-encoded by Rails) | Multi-step chain — same shape as `data-swal-steps`. |
+
+---
+
+### Stimulus controller reference
+
+Registered under the identifier `"swal"`.
+
+#### Values
+
+| Value         | Type   | Default | Used by |
+| ------------- | ------ | ------- | ------- |
+| `optionsValue` | Object | `{}`    | `fire`, `confirm` |
+| `stepsValue`   | Array  | `[]`    | `chain` |
+
+#### Actions
+
+| Action    | Target behavior |
+| --------- | --------------- |
+| `fire`    | Fires `Swal.fire(optionsValue)`. Calls `preventDefault()` on the event if the element is `<a>` or `<button>`. Returns the SA2 promise. |
+| `confirm` | Fires `Swal.fire({ showCancelButton: true, focusCancel: true, ...optionsValue })`. On `isConfirmed`, calls `requestSubmit()` (fallback `submit()`) on the enclosing form. |
+| `chain`   | Runs `chainDialogs(Swal, stepsValue)`. On resolved `true`, calls `requestSubmit()` / `submit()` on the enclosing form. Returns the boolean. |
+
+Example:
+
+```erb
+<button data-controller="swal"
+        data-action="click->swal#chain"
+        data-swal-steps-value='[{"title":"Sure?"},{"title":"Really?"}]'>
+  Proceed
+</button>
+```
+
+---
+
+### JS runtime
+
+#### Entry point
+
+```js
+import "swal_rails"              // installs confirm + flash handlers
+```
+
+Expected in your JS entrypoint (e.g. `app/javascript/application.js`).
+
+#### Re-exports
+
+```js
+import Swal from "sweetalert2"                            // SA2, re-exported as default from swal_rails
+import { Swal } from "swal_rails"                         // named re-export (same instance)
+import { chainDialogs, CHAIN_DEFAULTS } from "swal_rails/chain"
+import { installConfirm } from "swal_rails/confirm"       // for custom boot sequences
+import { installFlash } from "swal_rails/flash"           // same
+```
+
+#### `chainDialogs(Swal, steps)`
+
+```ts
+chainDialogs(Swal: typeof import("sweetalert2"), steps: Array<StepOptions>): Promise<boolean>
+```
+
+Returns `true` iff a complete path through the chain was confirmed. `steps` may be empty (resolves `true` immediately). Non-array input resolves `true` as well.
+
+`StepOptions` is any valid SA2 options Hash, plus the two chain-only keys:
+
+| Key            | Type                | Effect |
+| -------------- | ------------------- | ------ |
+| `onConfirmed`  | `Array<StepOptions>` | On `isConfirmed`, run this sub-chain and adopt its boolean result (replaces the remainder of the current chain). |
+| `onDenied`     | `Array<StepOptions>` | On `isDenied` (requires `showDenyButton: true`), run this sub-chain and adopt its boolean result. Without this key, `isDenied` aborts the chain. |
+
+#### Events
+
+| Event name         | Target     | `event.detail` | When |
+| ------------------ | ---------- | -------------- | ---- |
+| `swal-rails:ready` | `document` | `{ Swal, config }` | Fired once per page lifetime after the first successful boot (not per Turbo navigation). |
+
+#### Meta-tag contract
+
+| Meta name     | Payload | Read by |
+| ------------- | ------- | ------- |
+| `swal-config` | `to_client_payload` JSON | Runtime boot — mixin, confirm handler, flash handler. Once per page. |
+| `swal-flash`  | Array of `{ key, options }` | Flash runtime — re-read on every `turbo:load`. |
+
+Flash entries are `{ key: "notice", options: { text: "..." } }` for string values, or `{ key: "notice", options: {...user hash...} }` for Hash values. Arrays in `flash[key]` are expanded into one entry per element.
+
+---
+
+### Generators
+
+#### `bin/rails g swal_rails:install`
+
+| Flag                      | Type    | Default           | Values |
+| ------------------------- | ------- | ----------------- | ------ |
+| `--mode`                  | String  | `auto`            | `auto`, `importmap`, `jsbundling`, `sprockets` |
+| `--confirm_mode`          | String  | `data_attribute`  | `off`, `data_attribute`, `turbo_override`, `both` — baked into the generated initializer |
+| `--skip_layout`           | Boolean | `false`           | When set, does not inject `<%= swal_rails_meta_tags %>` into `app/views/layouts/application.html.erb` |
+
+`--mode=auto` detection order:
+1. `config/importmap.rb` present → `importmap`
+2. `package.json` present → `jsbundling`
+3. fallback → `sprockets`
+
+Per-mode side effects:
+
+- **importmap**: appends `pin "sweetalert2", to: "sweetalert2.esm.all.js"` and `pin "swal_rails", to: "swal_rails/index.js"` to `config/importmap.rb`; appends `import "swal_rails"` to `app/javascript/application.js`.
+- **jsbundling**: runs `yarn add sweetalert2@<pinned>` or `npm install sweetalert2@<pinned>` (based on the lockfile present); appends `import "swal_rails"` to `app/javascript/application.js`.
+- **sprockets**: appends `//= link sweetalert2.js` and `//= link sweetalert2.css` to `app/assets/config/manifest.js`.
+
+All append operations are idempotent — running the generator twice is safe.
+
+#### `bin/rails g swal_rails:locales`
+
+No flags. Copies `config/locales/swal_rails.en.yml` and `swal_rails.fr.yml` from the gem into your app's `config/locales/`.
+
+---
+
+### Flash value shapes
+
+| Value type | Rendered as |
+| ---------- | ----------- |
+| `String`   | `{ text: value }` — safe by default (SA2 renders via `text:`, no HTML injection). |
+| `Hash`     | Full SA2 options, **shadows** `flash_map[key]`. Any SA2 key is accepted (icon, timer, input, html, iconHtml, …). |
+| `Array`    | Expanded into one entry per element. Strings become `{ text: elem }`, Hashes pass through verbatim. |
+| `nil` / `""` / `blank?` | Skipped. |
+
+Key normalization: Hash keys are `symbolize_keys`-ed before serialization, so `flash[:notice] = { "text" => "..." }` and `flash[:notice] = { text: "..." }` are equivalent.
+
+> ⚠️ **Hash overrides bypass the `text:` safety net.** Using `html:`, `iconHtml:`, or `footer:` with untrusted input is an XSS — SweetAlert2 renders those as raw HTML by design. Rule of thumb: if the value is user-controlled, keep the String form.
+
+---
+
+### Chain semantics
+
+Single source of truth for every chain-aware entry point (`data-swal-steps`, `data-turbo-confirm` with an array, Stimulus `chain` action, `swal_chain_tag`, direct `chainDialogs` call).
+
+Per step:
+
+| SA2 result    | Behavior |
+| ------------- | -------- |
+| `isDismissed` (×, Esc, backdrop) | Abort the current chain → `false`. Outer chain (if this was a sub-chain) also terminates with `false`. |
+| `isConfirmed` | If `onConfirmed: [...]` is defined, run it recursively and **replace** the remainder of the current chain with its result. Else continue linearly. |
+| `isDenied` (requires `showDenyButton: true`) | If `onDenied: [...]` is defined, run it recursively and adopt its result. Else abort → `false`. |
+
+Return rules:
+
+- An empty or non-array `steps` input resolves `true` immediately.
+- A chain resolves `true` iff it ran to completion along a path without any dismiss or unbranched deny.
+- Sub-chains inherit the same per-step defaults (`showCancelButton: true`, `focusCancel: true`, `icon: "warning"`).
+- `onConfirmed` / `onDenied` keys are stripped before being passed to `Swal.fire`, so they never leak into the SA2 popup options.
+
+Callback contract for Turbo override: the chain's final `Promise<boolean>` is what `Turbo.setConfirmMethod` receives — `false` cancels the navigation / form submit, `true` proceeds.
 
 ---
 

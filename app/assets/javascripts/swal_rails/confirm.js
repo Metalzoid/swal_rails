@@ -1,22 +1,27 @@
+import { chainDialogs } from "swal_rails/chain"
+
 const parseJSON = (value) => {
-  if (!value) return {}
-  try { return JSON.parse(value) || {} } catch { return {} }
+  if (!value) return null
+  try { return JSON.parse(value) } catch { return null }
 }
 
 // When Rails serializes `data: { turbo_confirm: { icon: "error" } }`, the
-// attribute value is a JSON string. Detect that and treat the parsed object
-// as SA2 options rather than as a raw message.
-const messageOptions = (message) => {
-  if (typeof message !== "string" || message[0] !== "{") return null
-  try {
-    const parsed = JSON.parse(message)
-    return parsed && typeof parsed === "object" ? parsed : null
-  } catch { return null }
+// attribute value is a JSON string. Detect that, and accept both Object
+// (single-step options) and Array (multi-step chain) shapes.
+const messagePayload = (message) => {
+  if (typeof message !== "string") return null
+  const trimmed = message.trim()
+  if (trimmed[0] !== "{" && trimmed[0] !== "[") return null
+  const parsed = parseJSON(trimmed)
+  if (Array.isArray(parsed)) return parsed
+  if (parsed && typeof parsed === "object") return parsed
+  return null
 }
 
 const confirmDialog = (Swal, message, element) => {
   const dataset = element?.dataset || {}
-  const fromMessage = messageOptions(message)
+  const payload = messagePayload(message)
+  const fromMessage = payload && !Array.isArray(payload) ? payload : null
   const text = fromMessage ? undefined : message
 
   const options = {
@@ -31,27 +36,41 @@ const confirmDialog = (Swal, message, element) => {
 
   // Merge order (later wins): defaults → data-swal-* shortcuts → JSON message
   // (turbo_confirm: {}) → data-swal-options (most specific).
-  const extras = parseJSON(dataset.swalOptions)
+  const extras = parseJSON(dataset.swalOptions) || {}
   return Swal.fire({ ...options, ...(fromMessage || {}), ...extras }).then((result) => result.isConfirmed)
+}
+
+// Dispatches to either a multi-step chain or a single-step confirm. Called
+// from both the Turbo override and the data-attribute listener so both
+// paths behave identically.
+const confirmFlow = (Swal, message, element) => {
+  const fromDataset = parseJSON(element?.dataset?.swalSteps)
+  if (Array.isArray(fromDataset) && fromDataset.length) return chainDialogs(Swal, fromDataset)
+
+  const payload = messagePayload(message)
+  if (Array.isArray(payload) && payload.length) return chainDialogs(Swal, payload)
+
+  return confirmDialog(Swal, message, element)
 }
 
 const installTurboOverride = (Swal) => {
   if (typeof window.Turbo === "undefined" || !window.Turbo.setConfirmMethod) return false
 
-  window.Turbo.setConfirmMethod((message, element) => confirmDialog(Swal, message, element))
+  window.Turbo.setConfirmMethod((message, element) => confirmFlow(Swal, message, element))
   return true
 }
 
 const installDataAttribute = (Swal) => {
   const handler = (event) => {
-    const el = event.target.closest("[data-swal-confirm]")
+    const el = event.target.closest("[data-swal-confirm], [data-swal-steps]")
     if (!el) return
     const message = el.getAttribute("data-swal-confirm")
     event.preventDefault()
     event.stopPropagation()
-    confirmDialog(Swal, message, el).then((confirmed) => {
+    confirmFlow(Swal, message, el).then((confirmed) => {
       if (!confirmed) return
       el.removeAttribute("data-swal-confirm")
+      el.removeAttribute("data-swal-steps")
       if (typeof el.click === "function" && event.type === "click") {
         el.click()
       } else if (el.tagName === "FORM") {
