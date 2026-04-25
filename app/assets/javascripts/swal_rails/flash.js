@@ -32,10 +32,15 @@ const ensureStackContainer = () => {
   if (!el) {
     el = document.createElement("div")
     el.id = STACK_ID
+    // 360px matches SA2's `body.swal2-toast-shown .swal2-container` width;
+    // without it the cloned popups inherit `width: 100%` from SA2 and
+    // visually span the whole screen.
     el.style.cssText = [
       "position:fixed",
       "top:1rem",
       "right:1rem",
+      "width:360px",
+      "max-width:calc(100vw - 2rem)",
       "display:flex",
       "flex-direction:column",
       "gap:.5rem",
@@ -68,7 +73,7 @@ const fireStacked = async (Swal, queue, delay) => {
     const opts = queue[i]
     const slot = document.createElement("div")
     slot.className = "swal-rails-stack-slot"
-    slot.style.cssText = "pointer-events:auto;"
+    slot.style.cssText = "width:100%;pointer-events:auto;"
     stack.appendChild(slot)
 
     const timerMs = opts.timer

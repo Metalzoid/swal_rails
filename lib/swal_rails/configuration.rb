@@ -28,11 +28,13 @@ module SwalRails
       @flash_array_mode = :sequential
       @flash_stack_delay = 500
       @i18n_scope = "swal_rails"
+      # `focusConfirm` / `returnFocus` are intentionally omitted: SA2 already
+      # defaults both to `true` internally, and passing them explicitly makes
+      # SA2 warn on every toast ("incompatible with toasts"). Listing them
+      # here would be a no-op behaviorally and a noise generator.
       @default_options = {
         buttonsStyling: true,
-        reverseButtons: false,
-        focusConfirm: true,
-        returnFocus: true
+        reverseButtons: false
       }
       @flash_map = default_flash_map
     end

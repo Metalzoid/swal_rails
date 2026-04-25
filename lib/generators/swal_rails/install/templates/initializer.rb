@@ -15,11 +15,12 @@ SwalRails.configure do |config|
   config.respect_reduced_motion = true
 
   # Default options merged into every Swal.fire call.
+  # Note: `focusConfirm` / `returnFocus` are intentionally omitted — SA2
+  # already defaults both to `true`, and listing them explicitly makes SA2
+  # warn on every toast ("incompatible with toasts").
   config.default_options = {
     buttonsStyling: true,
-    reverseButtons: false,
-    focusConfirm: true,
-    returnFocus: true
+    reverseButtons: false
   }
 
   # Map Rails flash keys to SweetAlert2 options.

@@ -8,7 +8,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.3.1.beta2] - 2026-04-24
 
+### Fixed
+- Flash runtime now also boots on `turbo:render`, not just `turbo:load`.
+  Form submissions that render in place (`render :index, status:
+  :unprocessable_entity` for `flash.now` payloads) trigger `turbo:render`
+  but not `turbo:load`, so the `swal-flash` meta tag emitted in the new
+  body never reached the runtime. The existing `data-swal-consumed`
+  guard on the meta tag dedupes the double-fire on full navigations.
+- Stacked-mode clones now render at SA2's standard toast width (360px,
+  capped at viewport width minus 2rem) instead of stretching to the full
+  page. The fix applies CSS to `#swal-rails-stack` mirroring SA2's
+  internal `body.swal2-toast-shown .swal2-container` rules — necessary
+  because the cloned popups live outside SA2's container hierarchy.
+- Confirm `:turbo_override` / `:both` now writes to
+  `Turbo.config.forms.confirm` first (Turbo 8.1+) and only falls back to
+  the deprecated `Turbo.setConfirmMethod`. Silences the Turbo deprecation
+  warning logged on every page load.
+
 ### Changed
+- `default_options` no longer ships with `focusConfirm: true` /
+  `returnFocus: true`. Both are already SA2's internal defaults, so
+  behavior is unchanged — but listing them explicitly made SA2 warn
+  ("incompatible with toasts") on every toast fire. The generator
+  template is updated to match.
 - `flash_map[:alert]` and `flash_map[:error]` now default to a toast
   (top-end, 4s, error icon) instead of a blocking modal. This makes every
   built-in flash key a toast out of the box — more consistent and more in

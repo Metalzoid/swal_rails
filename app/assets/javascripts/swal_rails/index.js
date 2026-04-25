@@ -56,7 +56,14 @@ const ready = (fn) => {
 }
 
 ready(boot)
+// `turbo:load` covers full Turbo Drive navigations + initial page loads.
+// `turbo:render` additionally covers form submissions that render with
+// a non-redirect status (e.g. 422 unprocessable_entity for `flash.now`)
+// — Turbo replaces the body but does NOT fire turbo:load in that path.
+// The `data-swal-consumed` guard on the meta tag dedupes the double-fire
+// on full navigations where both events run.
 document.addEventListener("turbo:load", boot)
+document.addEventListener("turbo:render", boot)
 
 export { Swal }
 export default Swal
