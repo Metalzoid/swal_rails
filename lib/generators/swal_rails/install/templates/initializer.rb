@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 SwalRails.configure do |config|
+  # Stamps this initializer against the template version that shipped with
+  # the installed gem. The boot-time check warns if you upgrade the gem to
+  # a version with a newer template — regenerate with:
+  #   bin/rails g swal_rails:install --skip-layout --force
+  # Set `config.silence_initializer_warning = true` to silence.
+  config.initializer_version = "<%= SwalRails::INITIALIZER_VERSION %>"
+
   # How confirmation modals are wired.
   #   :off             — do nothing, use Swal manually
   #   :data_attribute  — intercept clicks/submits on [data-swal-confirm] (default, non-intrusive)

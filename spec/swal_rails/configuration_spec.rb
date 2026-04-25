@@ -24,6 +24,14 @@ RSpec.describe SwalRails::Configuration do
       expect(config.flash_stack_delay).to eq(500)
     end
 
+    it "defaults initializer_version to nil (drives the boot-time stale-stamp warning)" do
+      expect(config.initializer_version).to be_nil
+    end
+
+    it "defaults silence_initializer_warning to false" do
+      expect(config.silence_initializer_warning).to be(false)
+    end
+
     it "defaults every flash_map key to toast: true" do
       expect(config.flash_map.values.map { |v| v[:toast] }).to all(be(true))
     end

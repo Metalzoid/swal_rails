@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-04-25
+
+### Added
+- Boot-time initializer drift detection. The gem ships
+  `SwalRails::INITIALIZER_VERSION`, the install template stamps
+  `config.initializer_version = "<current>"`, and a Rails initializer
+  hooked after `:load_config_initializers` logs a one-line warning when
+  the user's stamp is missing or trails the gem's expected value. Includes
+  the regenerate command in the message:
+  `bin/rails g swal_rails:install --skip-layout --force`.
+- `config.silence_initializer_warning` (Boolean, default `false`) opt-out
+  for users who don't want to regenerate.
+
 ## [0.3.2] - 2026-04-25
 
 First stable release on top of the `0.3.1.beta1` + `0.3.1.beta2`

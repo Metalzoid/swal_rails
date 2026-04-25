@@ -49,6 +49,12 @@ RSpec.describe SwalRails::Generators::InstallGenerator, type: :generator do
     expect(dest_read("config/initializers/swal_rails.rb")).to include(":turbo_override")
   end
 
+  it "stamps the generated initializer with the current INITIALIZER_VERSION" do
+    run_install
+    contents = dest_read("config/initializers/swal_rails.rb")
+    expect(contents).to include(%(config.initializer_version = "#{SwalRails::INITIALIZER_VERSION}"))
+  end
+
   context "importmap mode" do
     it "pins sweetalert2 and swal_rails in importmap.rb" do
       dest_write "config/importmap.rb", "pin \"application\"\n"
