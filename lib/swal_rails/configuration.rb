@@ -17,7 +17,9 @@ module SwalRails
                   :flash_keys_as_meta,
                   :respect_reduced_motion,
                   :expose_window_swal,
-                  :flash_stack_delay
+                  :flash_stack_delay,
+                  :initializer_version,
+                  :silence_initializer_warning
     attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode
 
     def initialize
@@ -28,6 +30,12 @@ module SwalRails
       @flash_array_mode = :sequential
       @flash_stack_delay = 500
       @i18n_scope = "swal_rails"
+      # `initializer_version` left nil — apps that haven't regenerated
+      # their initializer since `SwalRails::INITIALIZER_VERSION` was
+      # introduced (0.3.3) get a one-line warning at boot. Setting it
+      # explicitly in the initializer template silences it.
+      @initializer_version = nil
+      @silence_initializer_warning = false
       # `focusConfirm` / `returnFocus` are intentionally omitted: SA2 already
       # defaults both to `true` internally, and passing them explicitly makes
       # SA2 warn on every toast ("incompatible with toasts"). Listing them

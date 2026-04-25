@@ -52,6 +52,13 @@ module SwalRails
     initializer "swal_rails.i18n" do
       config.i18n.load_path += Dir[root.join("config/locales/*.yml").to_s]
     end
+
+    # Run AFTER user initializers so we can read whatever value they set
+    # (or didn't set) for `config.initializer_version`. One-shot, idempotent,
+    # opt-out via `config.silence_initializer_warning = true`.
+    initializer "swal_rails.check_initializer_version", after: :load_config_initializers do
+      SwalRails::InitializerVersionCheck.run!
+    end
   end
 end
 
