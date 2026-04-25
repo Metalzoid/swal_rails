@@ -21,6 +21,16 @@ class PagesController < ApplicationController
     redirect_to root_path
   end
 
+  def show_stacked
+    swal_flash :alert, ["First", "Second", "Third"], mode: :stacked, delay: 50
+    redirect_to root_path
+  end
+
+  def show_sequential
+    swal_flash :alert, ["First", "Second", "Third"], mode: :sequential
+    redirect_to root_path
+  end
+
   def confirm_page
     render :confirm
   end

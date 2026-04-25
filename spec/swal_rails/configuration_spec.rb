@@ -15,6 +15,35 @@ RSpec.describe SwalRails::Configuration do
     it "enables reduced-motion respect by default" do
       expect(config.respect_reduced_motion).to be(true)
     end
+
+    it "defaults flash_array_mode to :sequential" do
+      expect(config.flash_array_mode).to eq(:sequential)
+    end
+
+    it "defaults flash_stack_delay to 500" do
+      expect(config.flash_stack_delay).to eq(500)
+    end
+
+    it "defaults every flash_map key to toast: true" do
+      expect(config.flash_map.values.map { |v| v[:toast] }).to all(be(true))
+    end
+  end
+
+  describe "#flash_array_mode=" do
+    it "accepts :sequential and :stacked" do
+      %i[sequential stacked].each do |mode|
+        expect { config.flash_array_mode = mode }.not_to raise_error
+      end
+    end
+
+    it "coerces strings to symbols" do
+      config.flash_array_mode = "stacked"
+      expect(config.flash_array_mode).to eq(:stacked)
+    end
+
+    it "rejects unknown modes" do
+      expect { config.flash_array_mode = :bogus }.to raise_error(ArgumentError, /flash_array_mode/)
+    end
   end
 
   describe "#confirm_mode=" do
@@ -55,6 +84,14 @@ RSpec.describe SwalRails::Configuration do
     it "carries the exposeWindowSwal flag" do
       config.expose_window_swal = false
       expect(config.to_client_payload[:exposeWindowSwal]).to be(false)
+    end
+
+    it "carries flashArrayMode and flashStackDelay" do
+      config.flash_array_mode = :stacked
+      config.flash_stack_delay = 250
+      payload = config.to_client_payload
+      expect(payload[:flashArrayMode]).to eq(:stacked)
+      expect(payload[:flashStackDelay]).to eq(250)
     end
 
     it "surfaces I18n-backed button text into the payload" do

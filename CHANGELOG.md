@@ -6,6 +6,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1.beta2] - 2026-04-24
+
+### Changed
+- `flash_map[:alert]` and `flash_map[:error]` now default to a toast
+  (top-end, 4s, error icon) instead of a blocking modal. This makes every
+  built-in flash key a toast out of the box — more consistent and more in
+  line with how Rails apps typically use `flash[:alert]`. Users who want
+  the old modal behavior can still opt in:
+  `config.flash_map[:alert] = { icon: "error", toast: false }`.
+
+### Added
+- `config.flash_array_mode` (`:sequential` default | `:stacked`) — how a
+  multi-entry flash payload is played. Sequential waits for each Swal to
+  close before firing the next (current behavior); stacked renders every
+  toast in parallel in a fixed top-right container with a configurable
+  delay between each appearance.
+- `config.flash_stack_delay` (ms, default 500) — gap between stacked
+  toasts in `:stacked` mode.
+- `swal_flash(key, messages, mode:, delay:, now:, **options)` helper,
+  available in both controllers and views. Lets a single call override the
+  global mode/delay and merge extra SA2 options for the payload:
+  `swal_flash :alert, @post.errors.full_messages, mode: :stacked, delay: 300`.
+- Reserved meta-keys `_arrayMode` / `_stackDelay` on flash entry options,
+  stripped by the JS runtime before being passed to `Swal.fire`.
+
 ## [0.3.1.beta1] - 2026-04-21
 
 ### Changed

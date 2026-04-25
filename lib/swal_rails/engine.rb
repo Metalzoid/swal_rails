@@ -40,6 +40,9 @@ module SwalRails
     initializer "swal_rails.helpers" do
       ActiveSupport.on_load(:action_controller_base) do
         helper SwalRails::Helpers
+        # Expose `swal_flash` as a controller method so controllers can
+        # set flash entries with per-request mode/delay overrides.
+        include SwalRails::Helpers
       end
       ActiveSupport.on_load(:action_view) do
         include SwalRails::Helpers
