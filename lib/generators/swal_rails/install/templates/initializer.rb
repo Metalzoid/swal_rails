@@ -4,7 +4,8 @@ SwalRails.configure do |config|
   # How confirmation modals are wired.
   #   :off             — do nothing, use Swal manually
   #   :data_attribute  — intercept clicks/submits on [data-swal-confirm] (default, non-intrusive)
-  #   :turbo_override  — replace Turbo.setConfirmMethod globally
+  #   :turbo_override  — replace Turbo.config.forms.confirm globally (Turbo 8.1+),
+  #                      falls back to legacy Turbo.setConfirmMethod on older Turbo
   #   :both            — both mechanisms at once
   config.confirm_mode = :<%= options[:confirm_mode] %>
 
