@@ -11,24 +11,30 @@ module SwalRails
   #   end
   class Configuration
     CONFIRM_MODES = %i[off data_attribute turbo_override both].freeze
+    FLASH_ARRAY_MODES = %i[sequential stacked].freeze
 
     attr_accessor :default_options,
                   :flash_keys_as_meta,
                   :respect_reduced_motion,
-                  :expose_window_swal
-    attr_reader :confirm_mode, :flash_map, :i18n_scope
+                  :expose_window_swal,
+                  :flash_stack_delay
+    attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode
 
     def initialize
       @confirm_mode = :data_attribute
       @flash_keys_as_meta = true
       @respect_reduced_motion = true
       @expose_window_swal = true
+      @flash_array_mode = :sequential
+      @flash_stack_delay = 500
       @i18n_scope = "swal_rails"
+      # `focusConfirm` / `returnFocus` are intentionally omitted: SA2 already
+      # defaults both to `true` internally, and passing them explicitly makes
+      # SA2 warn on every toast ("incompatible with toasts"). Listing them
+      # here would be a no-op behaviorally and a noise generator.
       @default_options = {
         buttonsStyling: true,
-        reverseButtons: false,
-        focusConfirm: true,
-        returnFocus: true
+        reverseButtons: false
       }
       @flash_map = default_flash_map
     end
@@ -38,6 +44,15 @@ module SwalRails
       raise ArgumentError, "confirm_mode must be one of #{CONFIRM_MODES.inspect}, got #{value.inspect}" unless CONFIRM_MODES.include?(value)
 
       @confirm_mode = value
+    end
+
+    def flash_array_mode=(value)
+      value = value.to_sym
+      unless FLASH_ARRAY_MODES.include?(value)
+        raise ArgumentError, "flash_array_mode must be one of #{FLASH_ARRAY_MODES.inspect}, got #{value.inspect}"
+      end
+
+      @flash_array_mode = value
     end
 
     def i18n_scope=(value)
@@ -59,6 +74,8 @@ module SwalRails
         exposeWindowSwal: expose_window_swal,
         defaultOptions: default_options,
         flashMap: flash_map,
+        flashArrayMode: flash_array_mode,
+        flashStackDelay: flash_stack_delay,
         i18n: i18n_payload
       }
     end
@@ -69,8 +86,8 @@ module SwalRails
       {
         notice: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
         success: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
-        alert: { icon: "error",   toast: false, timer: nil },
-        error: { icon: "error",   toast: false, timer: nil },
+        alert: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+        error: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         warning: { icon: "warning", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         info: { icon: "info", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
       }

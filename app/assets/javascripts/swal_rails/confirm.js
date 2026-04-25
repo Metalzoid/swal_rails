@@ -54,10 +54,20 @@ const confirmFlow = (Swal, message, element) => {
 }
 
 const installTurboOverride = (Swal) => {
-  if (typeof window.Turbo === "undefined" || !window.Turbo.setConfirmMethod) return false
-
-  window.Turbo.setConfirmMethod((message, element) => confirmFlow(Swal, message, element))
-  return true
+  if (typeof window.Turbo === "undefined") return false
+  const handler = (message, element) => confirmFlow(Swal, message, element)
+  // Turbo 8.1+ renamed the API to `Turbo.config.forms.confirm`. The legacy
+  // `setConfirmMethod` still works but emits a deprecation warning. Prefer
+  // the new path, fall back to the old one for older Turbo versions.
+  if (window.Turbo.config?.forms) {
+    window.Turbo.config.forms.confirm = handler
+    return true
+  }
+  if (typeof window.Turbo.setConfirmMethod === "function") {
+    window.Turbo.setConfirmMethod(handler)
+    return true
+  }
+  return false
 }
 
 const installDataAttribute = (Swal) => {

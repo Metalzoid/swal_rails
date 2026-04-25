@@ -10,9 +10,9 @@ RSpec.describe "Flash integration", type: :system, js: true do
     expect(page).to have_css(".swal2-icon-success")
   end
 
-  it "shows a modal for flash[:alert]" do
+  it "shows a toast for flash[:alert]" do
     visit "/alert"
-    expect(page).to have_css(".swal2-popup", wait: 5)
+    expect(page).to have_css(".swal2-toast", wait: 5)
     expect(page).to have_content("Could not save")
     expect(page).to have_css(".swal2-icon-error")
   end
@@ -31,5 +31,24 @@ RSpec.describe "Flash integration", type: :system, js: true do
     expect(page).to have_content("Custom bam")
     expect(page).to have_css(".swal2-icon-question")
     expect(page).not_to have_css(".swal2-toast")
+  end
+
+  it "stacks multiple toasts concurrently when swal_flash mode: :stacked" do
+    visit "/stacked_errors"
+    # Stack container appears and holds all three toasts at once.
+    expect(page).to have_css("#swal-rails-stack", wait: 5)
+    expect(page).to have_css("#swal-rails-stack .swal2-toast", count: 3, wait: 5)
+    expect(page).to have_content("First")
+    expect(page).to have_content("Second")
+    expect(page).to have_content("Third")
+  end
+
+  it "plays messages one-by-one when swal_flash mode: :sequential" do
+    visit "/sequential_errors"
+    # Sequential path: only the first toast is visible initially,
+    # no stack container is created.
+    expect(page).to have_css(".swal2-toast", wait: 5)
+    expect(page).to have_content("First")
+    expect(page).not_to have_css("#swal-rails-stack")
   end
 end

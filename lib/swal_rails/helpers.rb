@@ -50,6 +50,48 @@ module SwalRails
       message.is_a?(Array) ? message : [message]
     end
 
+    # Controller/view sugar for setting a flash entry with per-request
+    # overrides of the global flash_array_mode / flash_stack_delay config.
+    #
+    #   swal_flash :alert, @post.errors.full_messages, mode: :stacked, delay: 300
+    #   swal_flash :notice, "Deployed!", icon: "rocket", timer: 5000
+    #   swal_flash :alert, "Oops", now: true            # uses flash.now
+    #
+    # `mode:` — :sequential | :stacked (overrides config.flash_array_mode for this payload)
+    # `delay:` — ms between stacked toasts (overrides config.flash_stack_delay)
+    # `now:`   — write to flash.now (for rendered responses, no redirect)
+    # `**options` — any extra SA2 options merged into each entry
+    #
+    # Meta-keys `_arrayMode` / `_stackDelay` are reserved — the JS runtime
+    # strips them before passing options to Swal.fire.
+    def swal_flash(key, messages, mode: nil, delay: nil, now: false, **options) # rubocop:disable Metrics/ParameterLists
+      entries = build_swal_flash_entries(messages, swal_flash_meta(mode, delay), options)
+      return if entries.empty?
+
+      (now ? flash.now : flash)[key] = entries.size == 1 ? entries.first : entries
+    end
+
+    private
+
+    def swal_flash_meta(mode, delay)
+      meta = {}
+      meta[:_arrayMode] = mode.to_s if mode
+      meta[:_stackDelay] = Integer(delay) if delay
+      meta
+    end
+
+    def build_swal_flash_entries(messages, meta, options)
+      list = messages.is_a?(Array) ? messages : [messages]
+      list.filter_map do |m|
+        next if m.blank?
+
+        base = m.is_a?(Hash) ? m.symbolize_keys : { text: m.to_s }
+        base.merge(options).merge(meta)
+      end
+    end
+
+    public
+
     # Generates an inline `<script>` that fires a single Swal.
     #
     # Usage: `<%= swal_tag(title: "Hi", icon: "info") %>`

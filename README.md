@@ -83,7 +83,7 @@ then — it's on **v11** now) and were built for the Rails 5 / UJS era.
 
 - 🎨 **SweetAlert2 v11** vendored and pinned — no CDN, no surprise upgrades.
 - ⚡ **Three asset pipelines**: Importmap (default), jsbundling, Sprockets.
-- 🔔 **Auto-wired flash** — `flash[:notice]` → toast, `flash[:alert]` → modal, fully mappable per key.
+- 🔔 **Auto-wired flash** — `flash[:notice]` / `flash[:alert]` → toast, stackable, fully mappable per key.
 - 🛡️ **Turbo confirmations** — replace the native `confirm()` globally **or** opt-in per element.
 - 🎮 **Stimulus controller** (`data-controller="swal"`) for declarative popups.
 - 🧱 **Ruby view helpers** — `swal_tag`, `swal_config_meta_tag`, `swal_flash_meta_tag`.
@@ -204,12 +204,16 @@ SwalRails.configure do |config|
   }
 
   # ─── Flash → Swal mapping (per key) ──────────────────────────────────
-  config.flash_map[:notice]  = { icon: "success", toast: true,  position: "top-end", timer: 3000 }
-  config.flash_map[:success] = { icon: "success", toast: true,  position: "top-end", timer: 3000 }
-  config.flash_map[:alert]   = { icon: "error",   toast: false }
-  config.flash_map[:error]   = { icon: "error",   toast: false }
-  config.flash_map[:warning] = { icon: "warning", toast: true,  position: "top-end", timer: 4000 }
-  config.flash_map[:info]    = { icon: "info",    toast: true,  position: "top-end", timer: 3000 }
+  config.flash_map[:notice]  = { icon: "success", toast: true, position: "top-end", timer: 3000 }
+  config.flash_map[:success] = { icon: "success", toast: true, position: "top-end", timer: 3000 }
+  config.flash_map[:alert]   = { icon: "error",   toast: true, position: "top-end", timer: 4000 }
+  config.flash_map[:error]   = { icon: "error",   toast: true, position: "top-end", timer: 4000 }
+  config.flash_map[:warning] = { icon: "warning", toast: true, position: "top-end", timer: 4000 }
+  config.flash_map[:info]    = { icon: "info",    toast: true, position: "top-end", timer: 3000 }
+
+  # ─── Multi-entry flash playback ─────────────────────────────────────
+  config.flash_array_mode  = :sequential  # :sequential | :stacked
+  config.flash_stack_delay = 500          # ms between stacked toasts
 
   # ─── I18n scope (for button labels) ──────────────────────────────────
   config.i18n_scope = "swal_rails"
@@ -228,8 +232,8 @@ end
 Any flash set from a controller is rendered automatically on page load:
 
 ```ruby
-flash[:notice] = "Profile updated"   # → toast top-right
-flash[:alert]  = "Could not save"    # → modal
+flash[:notice] = "Profile updated"   # → success toast top-right
+flash[:alert]  = "Could not save"    # → error toast top-right (since 0.3.1.beta2)
 ```
 
 Arrays are expanded into one popup per message — handy for model errors:
@@ -247,6 +251,38 @@ instead of a String — its keys flow straight into `Swal.fire` and shadow
 flash[:notice] = { text: "Deployed!", icon: "rocket", timer: 5000, toast: true }
 # → ignores flash_map[:notice], fires a 5-second rocket toast
 ```
+
+#### Multi-entry playback: sequential vs stacked
+
+When more than one flash entry is set in a single request — either through an
+array of messages under one key, or multiple distinct keys — the runtime
+picks one of two playback modes (configurable via `config.flash_array_mode`):
+
+| Mode           | Behavior |
+| -------------- | -------- |
+| `:sequential`  | **(default)** Each Swal fires only after the previous one closes — chained via Promise callbacks. Predictable but slow on long lists. |
+| `:stacked`     | All entries fire in parallel into a fixed top-right container, stacking vertically. Each appears `flash_stack_delay` ms after the previous (default 500ms), then runs its own timer independently. Any `toast: false` entry is forced to toast in this mode. |
+
+#### `swal_flash` helper (per-request override)
+
+For one-off overrides without touching the global config, use `swal_flash`
+from controllers or views:
+
+```ruby
+# Pile up validation errors as a stack of toasts with a quicker 300ms cadence
+swal_flash :alert, @post.errors.full_messages, mode: :stacked, delay: 300
+
+# Same mode but over flash.now (for `render`, not `redirect_to`)
+swal_flash :alert, "Form incomplete", now: true
+
+# Extra SA2 options are merged into every entry
+swal_flash :notice, "Deployed!", icon: "rocket", timer: 5000
+```
+
+Signature: `swal_flash(key, messages, mode: nil, delay: nil, now: false, **options)`.
+`mode:` and `delay:` are stored on the flash entry as reserved `_arrayMode` /
+`_stackDelay` meta-keys, extracted by the JS runtime before the options are
+handed to `Swal.fire` — they never leak into SA2.
 
 Behind the scenes, the engine serializes the flash into a meta tag
 (`<meta name="swal-flash" content="...">`) and the JS runtime reads it and
@@ -488,6 +524,8 @@ SwalRails.reset_configuration!             # resets to defaults (test fixture he
 | `expose_window_swal`     | Boolean | `true`             | When `true`, `window.Swal` is set to the mixed-in `Swal` instance after boot (useful for console debugging and inline scripts). |
 | `default_options`        | Hash    | see below          | Merged into **every** `Swal.fire(...)` call via `Swal.mixin(...)`. |
 | `flash_map`              | Hash    | see below          | Flash-key → SA2 options mapping. Keys normalized to symbols. Non-Hash assignment raises `ArgumentError`. |
+| `flash_array_mode`       | Symbol  | `:sequential`      | How multi-entry flash payloads are played: `:sequential` (one at a time, waits for close) or `:stacked` (all in parallel, stacked top-right). Validated. |
+| `flash_stack_delay`      | Integer | `500`              | Milliseconds between each toast's appearance in `:stacked` mode. |
 | `i18n_scope`             | String  | `"swal_rails"`     | I18n scope used to look up `confirm_button_text`, `cancel_button_text`, `deny_button_text`, `close_button_aria_label`. Non-string values are coerced. |
 
 `confirm_mode` accepted values:
@@ -509,14 +547,17 @@ SwalRails.reset_configuration!             # resets to defaults (test fixture he
 
 ```ruby
 {
-  notice:  { icon: "success", toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
-  success: { icon: "success", toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
-  alert:   { icon: "error",   toast: false, timer: nil },
-  error:   { icon: "error",   toast: false, timer: nil },
-  warning: { icon: "warning", toast: true,  position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
-  info:    { icon: "info",    toast: true,  position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
+  notice:  { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
+  success: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
+  alert:   { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+  error:   { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+  warning: { icon: "warning", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+  info:    { icon: "info",    toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
 }
 ```
+
+> 💡 **Prefer a modal for errors?** Override in your initializer:
+> `config.flash_map[:alert] = { icon: "error", toast: false }`.
 
 #### `to_client_payload` (internal, read-only)
 
@@ -530,7 +571,9 @@ Serialization contract consumed by the JS runtime via the
   exposeWindowSwal:     Boolean,
   defaultOptions:       Hash,
   flashMap:             Hash,
-  i18n:                 Hash   # only keys whose translation is present
+  flashArrayMode:       Symbol,  # :sequential | :stacked
+  flashStackDelay:      Integer, # ms
+  i18n:                 Hash     # only keys whose translation is present
 }
 ```
 

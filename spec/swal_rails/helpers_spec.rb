@@ -17,6 +17,16 @@ RSpec.describe SwalRails::Helpers do
     end
   end
 
+  # Flash stand-in that mimics the subset of ActionDispatch::Flash::FlashHash
+  # used by `swal_flash` — [] / []=  and `.now` returning another settable bag.
+  let(:flash_klass) do
+    Class.new(Hash) do
+      def now
+        @now ||= {}
+      end
+    end
+  end
+
   subject(:view) { klass.new }
 
   describe "#swal_config_meta_tag" do
@@ -82,6 +92,65 @@ RSpec.describe SwalRails::Helpers do
     it "accepts symbol keys and preserves them as strings" do
       view.flash = { notice: "Saved" }
       expect(view.swal_flash_meta_tag).to include("&quot;key&quot;:&quot;notice&quot;")
+    end
+  end
+
+  describe "#swal_flash" do
+    before { view.flash = flash_klass.new }
+
+    it "writes a single-entry hash when messages is a String" do
+      view.swal_flash(:notice, "Saved")
+      expect(view.flash[:notice]).to eq(text: "Saved")
+    end
+
+    it "expands an array into a list of entries" do
+      view.swal_flash(:alert, %w[a b])
+      expect(view.flash[:alert]).to eq([{ text: "a" }, { text: "b" }])
+    end
+
+    it "attaches _arrayMode meta-key when mode is provided" do
+      view.swal_flash(:alert, %w[a b], mode: :stacked)
+      expect(view.flash[:alert].first).to include(_arrayMode: "stacked")
+      expect(view.flash[:alert].last).to include(_arrayMode: "stacked")
+    end
+
+    it "attaches _stackDelay meta-key when delay is provided" do
+      view.swal_flash(:alert, %w[a b], delay: 300)
+      expect(view.flash[:alert].first).to include(_stackDelay: 300)
+    end
+
+    it "merges extra SA2 options into each entry" do
+      view.swal_flash(:notice, %w[x y], icon: "rocket", timer: 2000)
+      expect(view.flash[:notice].first).to include(text: "x", icon: "rocket", timer: 2000)
+      expect(view.flash[:notice].last).to include(text: "y", icon: "rocket", timer: 2000)
+    end
+
+    it "writes to flash.now when now: true" do
+      view.swal_flash(:alert, "bad", now: true)
+      expect(view.flash.now[:alert]).to eq(text: "bad")
+      expect(view.flash[:alert]).to be_nil
+    end
+
+    it "skips blank messages and writes nothing when list is empty" do
+      view.swal_flash(:alert, ["", nil])
+      expect(view.flash[:alert]).to be_nil
+    end
+
+    it "preserves a Hash message and merges overrides" do
+      view.swal_flash(:notice, { text: "hi", icon: "star" }, timer: 4000)
+      expect(view.flash[:notice]).to eq(text: "hi", icon: "star", timer: 4000)
+    end
+
+    it "rejects an invalid delay" do
+      expect { view.swal_flash(:alert, "x", delay: "nope") }.to raise_error(ArgumentError)
+    end
+
+    it "round-trips through swal_flash_meta_tag" do
+      view.swal_flash(:alert, %w[a b], mode: :stacked, delay: 250)
+      tag = view.swal_flash_meta_tag
+      expect(tag).to include("&quot;_arrayMode&quot;:&quot;stacked&quot;")
+      expect(tag).to include("&quot;_stackDelay&quot;:250")
+      expect(tag.scan("&quot;key&quot;:&quot;alert&quot;").size).to eq(2)
     end
   end
 
