@@ -14,6 +14,28 @@ export const CHAIN_DEFAULTS = {
   icon: "warning"
 }
 
+// JSON-delivered steps cannot ship functions (e.g. inputValidator).
+// `inputExpected` provides a declarative guard for typed confirmations.
+const normalizeStep = (step) => {
+  const {
+    onConfirmed,
+    onDenied,
+    inputExpected,
+    inputExpectedError,
+    ...sa2Options
+  } = step || {}
+
+  if (typeof inputExpected === "string") {
+    const expected = inputExpected
+    const error = inputExpectedError || `Type "${expected}" to continue`
+    sa2Options.inputValidator = (value) => (
+      (value || "").trim() === expected ? undefined : error
+    )
+  }
+
+  return { onConfirmed, onDenied, sa2Options }
+}
+
 export const chainDialogs = async (Swal, steps) => {
   if (!Array.isArray(steps) || steps.length === 0) return true
 
@@ -21,7 +43,7 @@ export const chainDialogs = async (Swal, steps) => {
     // Strip our own control keys — SA2 ignores unknown options, but leaking
     // `onConfirmed`/`onDenied` into the popup options keeps the serialized
     // payload noisy and invites confusion.
-    const { onConfirmed, onDenied, ...sa2Options } = step || {}
+    const { onConfirmed, onDenied, sa2Options } = normalizeStep(step)
     const result = await Swal.fire({ ...CHAIN_DEFAULTS, ...sa2Options })
 
     if (result.isDismissed) return false

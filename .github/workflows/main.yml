@@ -33,10 +33,21 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-      - name: Install Chromium for Cuprite
+      # `chromium-browser` on Ubuntu pulls the Snap transitional package and
+      # blocks CI when the snap store is unreachable. Google Chrome stable is
+      # a plain .deb from Google's APT repo — same engine, no snap.
+      - name: Install Google Chrome for Cuprite
         run: |
+          set -eux
           sudo apt-get update
-          sudo apt-get install -y chromium-browser
+          sudo apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          # Non-interactive CI has no /dev/tty — gpg must run in batch mode.
+          curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+            | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+            | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends google-chrome-stable
       - name: Run RSpec
         run: bundle exec rspec
 

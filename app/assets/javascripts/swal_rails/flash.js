@@ -3,35 +3,39 @@
 // would have its fireNext chain launched twice, racing and cascading via
 // Swal.fire's replace-current-popup behavior — only the last message wins.
 const readFlash = () => {
-  const el = document.querySelector('meta[name="swal-flash"]')
-  if (!el || el.dataset.swalConsumed === "1") return []
-  el.dataset.swalConsumed = "1"
-  try { return JSON.parse(el.getAttribute("content")) || [] } catch { return [] }
-}
+  const el = document.querySelector('meta[name="swal-flash"]');
+  if (!el || el.dataset.swalConsumed === "1") return [];
+  el.dataset.swalConsumed = "1";
+  try {
+    return JSON.parse(el.getAttribute("content")) || [];
+  } catch {
+    return [];
+  }
+};
 
 // Keys attached by `swal_flash` helper for per-request mode / delay override.
 // Stripped from the options before being passed to Swal.fire so they never
 // leak into SA2.
-const META_KEYS = ["_arrayMode", "_stackDelay"]
+const META_KEYS = ["_arrayMode", "_stackDelay"];
 
 const extractMeta = (queue) => {
-  let mode = null
-  let delay = null
+  let mode = null;
+  let delay = null;
   for (const item of queue) {
-    if (mode === null && item._arrayMode) mode = item._arrayMode
-    if (delay === null && item._stackDelay != null) delay = item._stackDelay
-    for (const k of META_KEYS) delete item[k]
+    if (mode === null && item._arrayMode) mode = item._arrayMode;
+    if (delay === null && item._stackDelay != null) delay = item._stackDelay;
+    for (const k of META_KEYS) delete item[k];
   }
-  return { mode, delay }
-}
+  return { mode, delay };
+};
 
-const STACK_ID = "swal-rails-stack"
+const STACK_ID = "swal-rails-stack";
 
 const ensureStackContainer = () => {
-  let el = document.getElementById(STACK_ID)
+  let el = document.getElementById(STACK_ID);
   if (!el) {
-    el = document.createElement("div")
-    el.id = STACK_ID
+    el = document.createElement("div");
+    el.id = STACK_ID;
     // 360px matches SA2's `body.swal2-toast-shown .swal2-container` width;
     // without it the cloned popups inherit `width: 100%` from SA2 and
     // visually span the whole screen.
@@ -45,21 +49,21 @@ const ensureStackContainer = () => {
       "flex-direction:column",
       "gap:.5rem",
       "z-index:10000",
-      "pointer-events:none"
-    ].join(";")
-    document.body.appendChild(el)
+      "pointer-events:none",
+    ].join(";");
+    document.body.appendChild(el);
   }
-  return el
-}
+  return el;
+};
 
 const fireSequential = (Swal, queue) => {
   const fireNext = () => {
-    const opts = queue.shift()
-    if (!opts) return
-    Swal.fire(opts).then(fireNext)
-  }
-  fireNext()
-}
+    const opts = queue.shift();
+    if (!opts) return;
+    Swal.fire(opts).then(fireNext);
+  };
+  fireNext();
+};
 
 // SA2 is singleton — two concurrent Swal.fire calls collapse into one
 // popup (the second replaces the first). To stack multiple toasts we let
@@ -68,15 +72,15 @@ const fireSequential = (Swal, queue) => {
 // stack with their own timer and click-to-dismiss handlers. Empiler des
 // modales bloquantes n'a pas de sens — on force toast: true.
 const fireStacked = async (Swal, queue, delay) => {
-  const stack = ensureStackContainer()
+  const stack = ensureStackContainer();
   for (let i = 0; i < queue.length; i++) {
-    const opts = queue[i]
-    const slot = document.createElement("div")
-    slot.className = "swal-rails-stack-slot"
-    slot.style.cssText = "width:100%;pointer-events:auto;"
-    stack.appendChild(slot)
+    const opts = queue[i];
+    const slot = document.createElement("div");
+    slot.className = "swal-rails-stack-slot";
+    slot.style.cssText = "width:100%;pointer-events:auto;";
+    stack.appendChild(slot);
 
-    const timerMs = opts.timer
+    const timerMs = opts.timer;
     await new Promise((resolve) => {
       Swal.fire({
         ...opts,
@@ -89,50 +93,75 @@ const fireStacked = async (Swal, queue, delay) => {
         showClass: { popup: "", backdrop: "", icon: "" },
         hideClass: { popup: "", backdrop: "", icon: "" },
         didRender: (popup) => {
-          const clone = popup.cloneNode(true)
-          clone.style.opacity = ""
-          clone.querySelectorAll(".swal2-timer-progress-bar-container").forEach((e) => e.remove())
+          const clone = popup.cloneNode(true);
+          clone.style.opacity = "";
+          // SA2 only flips `popup.style.display` to `grid` at didOpen. We
+          // clone at didRender — earlier in the lifecycle — so the inline
+          // display is missing. Outside SA2's `.swal2-container` the toast
+          // therefore falls back to `display: block`, which collapses the
+          // grid layout (`.swal2-toast { grid-template-columns: … }`) and
+          // ends up rendering icon/title/content stacked vertically — the
+          // "vachement haute" symptom of stacked flashes.
+          clone.style.display = "grid";
+          clone
+            .querySelectorAll(".swal2-timer-progress-bar-container")
+            .forEach((e) => e.remove());
           // SA2 adds `.swal2-icon-show` only after didOpen, but we clone
           // earlier (in didRender) to beat the close animation. Apply it
           // manually so the icon's SVG is visibly drawn in the clone.
-          clone.querySelectorAll(".swal2-icon").forEach((icon) => icon.classList.add("swal2-icon-show"))
-          slot.appendChild(clone)
+          clone
+            .querySelectorAll(".swal2-icon")
+            .forEach((icon) => icon.classList.add("swal2-icon-show"));
+          slot.appendChild(clone);
           const dismiss = () => {
-            if (slot.isConnected) slot.remove()
-            if (stack.isConnected && stack.children.length === 0) stack.remove()
-          }
-          clone.querySelector(".swal2-close")?.addEventListener("click", dismiss)
-          if (timerMs) setTimeout(dismiss, timerMs)
+            if (slot.isConnected) slot.remove();
+            if (stack.isConnected && stack.children.length === 0)
+              stack.remove();
+          };
+          clone
+            .querySelector(".swal2-close")
+            ?.addEventListener("click", dismiss);
+          if (timerMs) setTimeout(dismiss, timerMs);
         },
-        didClose: () => resolve()
-      })
-    })
+        didClose: () => resolve(),
+      });
+    });
 
     if (i < queue.length - 1 && delay > 0) {
-      await new Promise((r) => setTimeout(r, delay))
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
-}
+};
 
 export const installFlash = (Swal, config) => {
-  const flashes = readFlash()
-  if (!flashes.length) return
+  const flashes = readFlash();
+  if (!flashes.length) return;
 
-  const map = config.flashMap || {}
+  const map = config.flashMap || {};
   const queue = flashes.map((flash) => {
-    const spec = map[flash.key] || map[flash.key.toLowerCase()] || { icon: "info", toast: true, position: "top-end", timer: 3000 }
+    const spec = map[flash.key] ||
+      map[flash.key.toLowerCase()] || {
+        icon: "info",
+        toast: true,
+        position: "top-end",
+        timer: 3000,
+      };
     // Per-request options win over the per-key defaults from flash_map.
-    return { ...spec, ...(flash.options || {}) }
-  })
+    return { ...spec, ...(flash.options || {}) };
+  });
 
-  const meta = extractMeta(queue)
-  const mode = meta.mode || config.flashArrayMode || "sequential"
-  const delay = meta.delay != null ? meta.delay
-    : (config.flashStackDelay != null ? config.flashStackDelay : 500)
+  const meta = extractMeta(queue);
+  const mode = meta.mode || config.flashArrayMode || "sequential";
+  const delay =
+    meta.delay != null
+      ? meta.delay
+      : config.flashStackDelay != null
+        ? config.flashStackDelay
+        : 500;
 
   if (mode === "stacked" && queue.length > 1) {
-    fireStacked(Swal, queue, delay)
+    fireStacked(Swal, queue, delay);
   } else {
-    fireSequential(Swal, queue)
+    fireSequential(Swal, queue);
   }
-}
+};
