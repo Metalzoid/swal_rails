@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-05-01
+
 ### Added
 - Chain step DSL gains `inputExpected` / `inputExpectedError` for typed
   confirmations in JSON-delivered flows (`data-swal-steps`,
@@ -14,9 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DELETE" steps enforceable without embedding JavaScript functions.
 
 ### Fixed
-- Stacked flash toasts now keep SweetAlert2's container context when cloned
-  into the custom stack, so popup dimensions/spacing match normal toasts
-  instead of rendering taller modal-like cards.
+- Stacked flash toasts no longer render with the icon/title/content
+  collapsed into a vertical block. SweetAlert2 only sets
+  `popup.style.display = "grid"` at `didOpen`, but the stacked-mode runtime
+  clones the popup at `didRender` (one lifecycle step earlier) so the
+  inline display is missing. Outside SA2's `.swal2-container` the toast
+  fell back to `display: block` and the `.swal2-toast` grid template never
+  applied. The clone now pins `display: grid` itself, matching the
+  geometry of standard toasts.
 
 ## [0.3.3] - 2026-04-25
 
