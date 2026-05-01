@@ -48,6 +48,26 @@ RSpec.describe "Chain integration", type: :system, js: true do
       # Landing page shows the flash toast from #destroy_chain.
       expect(page).to have_content("Chained delete #1", wait: 5)
     end
+
+    it "requires the expected text on typed confirmation steps" do
+      visit "/chain"
+      find("#chain-typed-btn").click
+
+      expect(page).to have_content("Delete step 1?", wait: 5)
+      click_swal("OK")
+      expect(page).to have_content("Really delete step 2?", wait: 5)
+      click_swal("OK")
+      expect(page).to have_content("Type DELETE to confirm", wait: 5)
+
+      click_swal("OK")
+      expect(page).to have_css(".swal2-validation-message", wait: 5)
+      expect(page).to have_css("#chain-title", text: "Chain page")
+
+      find(".swal2-input", wait: 5).set("DELETE")
+      click_swal("OK")
+
+      expect(page).to have_content("Chained delete #4", wait: 5)
+    end
   end
 
   describe "onDenied sub-chain" do

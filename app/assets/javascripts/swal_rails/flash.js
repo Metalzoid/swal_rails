@@ -90,13 +90,27 @@ const fireStacked = async (Swal, queue, delay) => {
         hideClass: { popup: "", backdrop: "", icon: "" },
         didRender: (popup) => {
           const clone = popup.cloneNode(true)
+          const renderedContainer = popup.closest(".swal2-container")
+          const wrapper = renderedContainer ? renderedContainer.cloneNode(false) : document.createElement("div")
+          wrapper.classList.add("swal-rails-stack-container")
+          wrapper.style.cssText = [
+            "position:static",
+            "inset:auto",
+            "display:block",
+            "padding:0",
+            "overflow:visible",
+            "background:transparent",
+            "pointer-events:auto",
+            "z-index:auto"
+          ].join(";")
           clone.style.opacity = ""
           clone.querySelectorAll(".swal2-timer-progress-bar-container").forEach((e) => e.remove())
           // SA2 adds `.swal2-icon-show` only after didOpen, but we clone
           // earlier (in didRender) to beat the close animation. Apply it
           // manually so the icon's SVG is visibly drawn in the clone.
           clone.querySelectorAll(".swal2-icon").forEach((icon) => icon.classList.add("swal2-icon-show"))
-          slot.appendChild(clone)
+          wrapper.appendChild(clone)
+          slot.appendChild(wrapper)
           const dismiss = () => {
             if (slot.isConnected) slot.remove()
             if (stack.isConnected && stack.children.length === 0) stack.remove()

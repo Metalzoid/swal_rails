@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Chain step DSL gains `inputExpected` / `inputExpectedError` for typed
+  confirmations in JSON-delivered flows (`data-swal-steps`,
+  `data-turbo-confirm` arrays, Stimulus `stepsValue`). The runtime injects
+  an `inputValidator` that requires exact text (after trim), making "Type
+  DELETE" steps enforceable without embedding JavaScript functions.
+
+### Fixed
+- Stacked flash toasts now keep SweetAlert2's container context when cloned
+  into the custom stack, so popup dimensions/spacing match normal toasts
+  instead of rendering taller modal-like cards.
+
 ## [0.3.3] - 2026-04-25
 
 ### Added

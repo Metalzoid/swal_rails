@@ -363,7 +363,12 @@ server:
       swal_steps: [
         { title: "Delete your account?", icon: "warning" },
         { title: "This cannot be undone", icon: "error" },
-        { title: "Type DELETE to confirm", input: "text" }
+        {
+          title: "Type DELETE to confirm",
+          input: "text",
+          inputExpected: "DELETE",
+          inputExpectedError: "Type DELETE exactly"
+        }
       ].to_json
     } %>
 ```
@@ -372,6 +377,10 @@ Every step is a full SweetAlert2 options Hash — override the default
 icon, buttons, timer, `input:` type, anything SA2 accepts. The per-step
 defaults (`showCancelButton: true`, `focusCancel: true`, `icon: "warning"`)
 are merged in first and can be replaced key-by-key.
+
+When a step uses `input:`, you can add `inputExpected` (and optional
+`inputExpectedError`) to enforce typed confirmations from JSON-only payloads
+where a function-based `inputValidator` cannot be serialized.
 
 #### Conditional branching (`onConfirmed` / `onDenied`)
 
@@ -717,6 +726,8 @@ Returns `true` iff a complete path through the chain was confirmed. `steps` may 
 | -------------- | ------------------- | ------ |
 | `onConfirmed`  | `Array<StepOptions>` | On `isConfirmed`, run this sub-chain and adopt its boolean result (replaces the remainder of the current chain). |
 | `onDenied`     | `Array<StepOptions>` | On `isDenied` (requires `showDenyButton: true`), run this sub-chain and adopt its boolean result. Without this key, `isDenied` aborts the chain. |
+| `inputExpected` | `String`            | If present, injects an `inputValidator` that requires an exact match (after trim). Useful for JSON-delivered typed confirmations (e.g. `"DELETE"`). |
+| `inputExpectedError` | `String`       | Optional error message used when `inputExpected` does not match. |
 
 #### Events
 

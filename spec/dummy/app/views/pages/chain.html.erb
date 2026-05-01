@@ -12,6 +12,23 @@
       },
       id: "chain-linear-btn" %>
 
+<%= button_to "Delete (typed confirmation)",
+      item_chain_path(4),
+      method: :delete,
+      data: {
+        swal_steps: [
+          { title: "Delete step 1?", icon: "warning" },
+          { title: "Really delete step 2?", icon: "error" },
+          {
+            title: "Type DELETE to confirm",
+            input: "text",
+            inputExpected: "DELETE",
+            inputExpectedError: "Type DELETE exactly"
+          }
+        ].to_json
+      },
+      id: "chain-typed-btn" %>
+
 <%# onDenied sub-chain — pressing Deny runs a short sub-chain; its result
     decides whether the action proceeds. %>
 <%= button_to "Delete with Deny branch",
