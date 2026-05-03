@@ -9,9 +9,10 @@ Stimulus controller, auto-wired flash messages, Turbo confirm replacement,
 Ruby view helpers, and full I18n. Everything is configurable.
 
 [![CI](https://github.com/Metalzoid/swal_rails/actions/workflows/main.yml/badge.svg)](https://github.com/Metalzoid/swal_rails/actions)
-[![Gem Version](https://badge.fury.io/rb/swal_rails.svg)](https://rubygems.org/gems/swal_rails)
-[![Ruby](https://img.shields.io/gem/ruby-version/swal_rails?label=ruby)](https://www.ruby-lang.org/)
-[![Rails](https://img.shields.io/gem/dv/swal_rails/railties?label=rails)](https://rubyonrails.org/)
+[![Gem Version](https://img.shields.io/gem/v/swal_rails.svg?label=gem)](https://rubygems.org/gems/swal_rails)
+[![Downloads](https://img.shields.io/gem/dt/swal_rails?label=downloads)](https://rubygems.org/gems/swal_rails)
+[![Ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-CC342D?logo=ruby&logoColor=white)](https://www.ruby-lang.org/)
+[![Rails](https://img.shields.io/badge/rails-7.2%20%7C%208.0%20%7C%208.1-CC0000?logo=rubyonrails&logoColor=white)](https://rubyonrails.org/)
 [![SweetAlert2](https://img.shields.io/badge/SweetAlert2-v11.26-3085d6.svg)](https://sweetalert2.github.io/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.txt)
 
