@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-03
+
+### Added
+- **`config.assets_mode`** (`:auto` default; also `:importmap`, `:jsbundling`, `:sprockets`). When set to a non-`:auto` value, the engine skips file-system sniffing at boot.
+- **`config.precompile_strategy`** (`:all` default; `:minimal` opt-in). Setting it to `:minimal` ships only the sweetalert2 variant matching the resolved `assets_mode` (and drops the optional theme files), saving ~700 KB of precompiled assets in `public/assets/`.
+- **`SwalRails::AssetManifest`** module that computes the precompile list. Pure / side-effect-free; covered by spec.
+
+### Changed
+- The `swal_rails.assets` initializer now runs `after: :load_config_initializers` so it can read user-supplied `config.assets_mode` / `config.precompile_strategy`. Default behaviour is unchanged for hosts that don't configure either option.
+
+### Deprecated
+- **`swal_tag`** and **`swal_chain_tag`** view helpers. Both emit inline `<script type="module">` tags that fight CSP and add per-request nonce overhead; prefer the bundled Stimulus controller (`data-controller="swal"` + `data-action="click->swal#fire"`) or the `data-swal-confirm` / `data-swal-steps` attributes. Slated for removal in v1.0; calling either helper now logs an `ActiveSupport::Deprecation` warning.
+
 ## [0.3.4] - 2026-05-01
 
 ### Added

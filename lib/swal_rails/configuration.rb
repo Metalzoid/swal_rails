@@ -12,6 +12,8 @@ module SwalRails
   class Configuration
     CONFIRM_MODES = %i[off data_attribute turbo_override both].freeze
     FLASH_ARRAY_MODES = %i[sequential stacked].freeze
+    ASSETS_MODES = %i[auto importmap jsbundling sprockets].freeze
+    PRECOMPILE_STRATEGIES = %i[all minimal].freeze
 
     attr_accessor :default_options,
                   :flash_keys_as_meta,
@@ -20,7 +22,8 @@ module SwalRails
                   :flash_stack_delay,
                   :initializer_version,
                   :silence_initializer_warning
-    attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode
+    attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode,
+                :assets_mode, :precompile_strategy
 
     def initialize
       @confirm_mode = :data_attribute
@@ -36,6 +39,16 @@ module SwalRails
       # explicitly in the initializer template silences it.
       @initializer_version = nil
       @silence_initializer_warning = false
+      # `:auto` lets the engine sniff (importmap.rb, package.json) at boot.
+      # Override in your initializer to lock the choice and skip the sniff.
+      @assets_mode = :auto
+      # `:all` keeps every sweetalert2 variant in the host's precompile
+      # list (legacy behaviour, ~970 KB on disk). `:minimal` precompiles
+      # only the variant the host's assets_mode actually uses, shaving
+      # ~700 KB. Default stays `:all` for backwards compatibility — flip
+      # to `:minimal` once you've confirmed your host doesn't reference
+      # extra variants directly.
+      @precompile_strategy = :all
       # `focusConfirm` / `returnFocus` are intentionally omitted: SA2 already
       # defaults both to `true` internally, and passing them explicitly makes
       # SA2 warn on every toast ("incompatible with toasts"). Listing them
@@ -65,6 +78,22 @@ module SwalRails
 
     def i18n_scope=(value)
       @i18n_scope = value.to_s
+    end
+
+    def assets_mode=(value)
+      value = value.to_sym
+      raise ArgumentError, "assets_mode must be one of #{ASSETS_MODES.inspect}" unless ASSETS_MODES.include?(value)
+
+      @assets_mode = value
+    end
+
+    def precompile_strategy=(value)
+      value = value.to_sym
+      unless PRECOMPILE_STRATEGIES.include?(value)
+        raise ArgumentError, "precompile_strategy must be one of #{PRECOMPILE_STRATEGIES.inspect}, got #{value.inspect}"
+      end
+
+      @precompile_strategy = value
     end
 
     # Replace the full flash map. Prefer editing individual keys via `flash_map[:key] = ...`.
