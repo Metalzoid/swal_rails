@@ -100,7 +100,18 @@ module SwalRails
     # When `nonce: true` is passed and ActionView's CSP helper is available,
     # Rails substitutes the per-request nonce so the tag survives a
     # `script-src 'self' 'nonce-…'` policy.
+    #
+    # @deprecated Inline `<script>` tags add per-request CSP nonce overhead
+    #   and are not cacheable. Prefer the `data-swal-confirm` attribute or
+    #   the bundled Stimulus controller (`data-controller="swal"
+    #   data-action="click->swal#fire"`). Slated for removal in v1.0.
     def swal_tag(options = {}, html_options = {})
+      ActiveSupport::Deprecation.new("1.0", "swal_rails").warn(
+        "swal_tag is deprecated. Use the bundled Stimulus controller " \
+        "(data-controller=\"swal\" data-action=\"click->swal#fire\" " \
+        "data-swal-options-value=\"…\") or a data-swal-confirm attribute. " \
+        "swal_tag will be removed in swal_rails 1.0."
+      )
       # json_escape neutralizes `</script>`, `<!--`, U+2028 and U+2029 —
       # the four sequences that can break out of a <script> block.
       payload = ERB::Util.json_escape(options.to_json)
@@ -120,7 +131,14 @@ module SwalRails
     # Same XSS hardening and CSP nonce handling as `swal_tag`. Each step is
     # a full SweetAlert2 options Hash; `onConfirmed:` / `onDenied:` keys
     # declare nested sub-chains for conditional branching.
+    #
+    # @deprecated Same trade-offs as `swal_tag`. Prefer `data-swal-steps`
+    #   on a button/form. Slated for removal in v1.0.
     def swal_chain_tag(steps, html_options = {})
+      ActiveSupport::Deprecation.new("1.0", "swal_rails").warn(
+        "swal_chain_tag is deprecated. Use a data-swal-steps attribute on " \
+        "the triggering element. swal_chain_tag will be removed in swal_rails 1.0."
+      )
       # Array(hash) destructures a Hash into [[k, v], ...] pairs — wrap
       # single Hash steps manually so shorthand `swal_chain_tag(title: "Hi")`
       # produces `[{"title":"Hi"}]`, not `[["title","Hi"]]`.

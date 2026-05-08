@@ -125,4 +125,41 @@ RSpec.describe SwalRails::Configuration do
       expect(config.i18n_scope).to eq("my_scope")
     end
   end
+
+  describe "#assets_mode=" do
+    it "defaults to :auto" do
+      expect(config.assets_mode).to eq(:auto)
+    end
+
+    it "accepts the documented modes" do
+      %i[auto importmap jsbundling sprockets].each do |mode|
+        config.assets_mode = mode
+        expect(config.assets_mode).to eq(mode)
+      end
+    end
+
+    it "rejects unknown modes" do
+      expect { config.assets_mode = :webpack }.to raise_error(ArgumentError, /assets_mode/)
+    end
+
+    it "coerces strings to symbols" do
+      config.assets_mode = "importmap"
+      expect(config.assets_mode).to eq(:importmap)
+    end
+  end
+
+  describe "#precompile_strategy=" do
+    it "defaults to :all (legacy behaviour, all variants shipped)" do
+      expect(config.precompile_strategy).to eq(:all)
+    end
+
+    it "accepts :all and :minimal" do
+      config.precompile_strategy = :minimal
+      expect(config.precompile_strategy).to eq(:minimal)
+    end
+
+    it "rejects unknown strategies" do
+      expect { config.precompile_strategy = :smart }.to raise_error(ArgumentError, /precompile_strategy/)
+    end
+  end
 end

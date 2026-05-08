@@ -8,24 +8,16 @@ module SwalRails
 
     config.swal_rails = SwalRails.configuration
 
-    initializer "swal_rails.assets" do |app|
+    initializer "swal_rails.assets", after: :load_config_initializers do |app|
       if app.config.respond_to?(:assets)
         app.config.assets.paths << root.join("vendor/javascript/sweetalert2").to_s
         app.config.assets.paths << root.join("vendor/stylesheets/sweetalert2").to_s
         app.config.assets.paths << root.join("app/assets/javascripts").to_s
         app.config.assets.paths << root.join("app/assets/stylesheets").to_s
-        app.config.assets.precompile += %w[
-          sweetalert2.js sweetalert2.min.js
-          sweetalert2.all.js sweetalert2.all.min.js
-          sweetalert2.esm.js sweetalert2.esm.min.js
-          sweetalert2.esm.all.js sweetalert2.esm.all.min.js
-          sweetalert2.css sweetalert2.min.css
-          themes/bootstrap-4.css themes/bootstrap-5.css
-          themes/borderless.css themes/bulma.css
-          themes/material-ui.css themes/minimal.css
-          swal_rails/index.js swal_rails/confirm.js swal_rails/flash.js swal_rails/chain.js
-          swal_rails/controllers/swal_controller.js
-        ]
+        app.config.assets.precompile += SwalRails::AssetManifest.precompile_for(
+          SwalRails.configuration,
+          app_root: app.root
+        )
       end
     end
 
