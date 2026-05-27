@@ -285,6 +285,19 @@ Signature: `swal_flash(key, messages, mode: nil, delay: nil, now: false, **optio
 `_stackDelay` meta-keys, extracted by the JS runtime before the options are
 handed to `Swal.fire` — they never leak into SA2.
 
+#### Persistent (non-auto-closing) entries
+
+Pass `_persistent: true` to any `swal_flash` call — or add it directly to a
+`flash_map` entry — to remove the auto-close timer and force a visible close
+button, requiring the user to dismiss manually:
+
+```ruby
+swal_flash :alert, "Your session will expire soon.", _persistent: true
+```
+
+The runtime strips `_persistent` before calling `Swal.fire`, then deletes
+`timer` / `timerProgressBar` and sets `showCloseButton: true` on the item.
+
 Behind the scenes, the engine serializes the flash into a meta tag
 (`<meta name="swal-flash" content="...">`) and the JS runtime reads it and
 calls `Swal.fire(...)` with your per-key options.
@@ -948,7 +961,7 @@ right template automatically.
 └──────────────────────────────────────────────────────────────────────┘
 
 ┌─ jsbundling (esbuild / vite / rollup) ───────────────────────────────┐
-│   package.json  →  "sweetalert2": "^11"  (your bundler resolves it)  │
+│   package.json  →  "sweetalert2": "^11", "swal_rails": "^0.5"        │
 │   app/javascript/application.js                                      │
 │     import "swal_rails"                                              │
 └──────────────────────────────────────────────────────────────────────┘

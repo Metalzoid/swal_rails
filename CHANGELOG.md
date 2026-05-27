@@ -6,6 +6,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-27
+
+### Added
+- **npm companion package** (`swal_rails` on npm). The install generator now runs
+  `yarn add swal_rails@<version>` (or `npm install`) in jsbundling mode, placing
+  the gem's JS runtime in `node_modules/swal_rails` so esbuild / webpack / vite
+  can resolve `import "swal_rails"` as a bare specifier — with no bundler
+  config required. All sub-paths (`swal_rails/confirm`, `/flash`, `/chain`,
+  `/controllers/swal_controller`) are covered via the package `exports` map.
+  Closes [#24](https://github.com/Metalzoid/swal_rails/issues/24).
+- **`rake npm:sync`** — copies JS files from `app/assets/javascripts/swal_rails/`
+  into `npm/` and bumps `npm/package.json` version to match `SwalRails::VERSION`.
+  Run before any npm publish.
+- **`rake npm:publish`** — runs `npm:sync` then `npm publish --access public`.
+- **`_persistent` flash option** — adding `_persistent: true` to a flash entry
+  (via `swal_flash :key, msg, _persistent: true` or directly in `flash_map`)
+  removes the auto-close timer and forces a visible close button, requiring
+  manual dismissal.
+
+### Fixed
+- **Stacked flash clone timing** — `didRender` replaced by `willOpen` + `didOpen`
+  for cloning SA2 popups into the stack container. The previous `timer: 1` could
+  race the `setTimeout(0)` SA2 uses to schedule `didOpen`, leaving slots empty.
+  Timer raised to 50 ms; the original popup is hidden via `willOpen` (opacity 0,
+  pointer-events none) so the clone is the only visible element.
+- **Stacked toast CSS scope** — SA2 scopes element rules under
+  `div:where(.swal2-container)` (zero-specificity `:where()`). Clones rendered
+  outside that container lost color, border-radius, and the close-button layout.
+  Added explicit `div.swal2-popup`, `div.swal2-html-container`, and
+  `button.swal2-close` rules in `index.css` that apply regardless of scope.
+- **`install_jsbundling` generator** — previously only installed `sweetalert2`;
+  now also installs `swal_rails` from the npm registry.
+
+### Changed
+- Release workflow (`.github/workflows/release.yml`) auto-publishes the npm
+  package after every gem push via the `NPM_TOKEN` repository secret.
+
 ## [0.4.0] - 2026-05-03
 
 ### Added
