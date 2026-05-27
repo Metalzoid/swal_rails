@@ -29,6 +29,18 @@ const extractMeta = (queue) => {
   return { mode, delay };
 };
 
+// Per-item: _persistent removes the auto-close timer and ensures the user
+// must dismiss manually via the close button.
+const applyPersistent = (queue) => {
+  for (const item of queue) {
+    if (!item._persistent) continue;
+    delete item._persistent;
+    delete item.timer;
+    delete item.timerProgressBar;
+    item.showCloseButton = true;
+  }
+};
+
 const STACK_ID = "swal-rails-stack";
 
 const ensureStackContainer = () => {
@@ -85,42 +97,36 @@ const fireStacked = async (Swal, queue, delay) => {
       Swal.fire({
         ...opts,
         toast: true,
-        // Close the SA2 original immediately; the clone in `slot` persists.
-        // Animations disabled on the decoy so the clone captures the popup
-        // in its normal "shown" state (no opacity-0 from close transition).
-        timer: 1,
         timerProgressBar: false,
         showClass: { popup: "", backdrop: "", icon: "" },
         hideClass: { popup: "", backdrop: "", icon: "" },
-        didRender: (popup) => {
+        // timer:1 races with the setTimeout(0) SA2 uses to schedule didOpen
+        // when animations are disabled — didOpen can lose that race and never
+        // fire, leaving the slot empty. 50 ms gives the event loop a safe
+        // margin while remaining imperceptible to the user.
+        timer: 50,
+        // Suppress the SA2 original so only our clone in the stack is visible.
+        willOpen: (popup) => {
+          popup.style.opacity = "0";
+          popup.style.pointerEvents = "none";
+        },
+        // Clone at didOpen: SA2 has applied all inline styles at this point
+        // (display:grid, icon classes, close-button grid placement, etc.),
+        // so the clone requires no manual fixups.
+        didOpen: (popup) => {
           const clone = popup.cloneNode(true);
+          // willOpen set opacity:0 on the original; clear it on the clone.
           clone.style.opacity = "";
-          // SA2 only flips `popup.style.display` to `grid` at didOpen. We
-          // clone at didRender — earlier in the lifecycle — so the inline
-          // display is missing. Outside SA2's `.swal2-container` the toast
-          // therefore falls back to `display: block`, which collapses the
-          // grid layout (`.swal2-toast { grid-template-columns: … }`) and
-          // ends up rendering icon/title/content stacked vertically — the
-          // "vachement haute" symptom of stacked flashes.
-          clone.style.display = "grid";
           clone
             .querySelectorAll(".swal2-timer-progress-bar-container")
             .forEach((e) => e.remove());
-          // SA2 adds `.swal2-icon-show` only after didOpen, but we clone
-          // earlier (in didRender) to beat the close animation. Apply it
-          // manually so the icon's SVG is visibly drawn in the clone.
-          clone
-            .querySelectorAll(".swal2-icon")
-            .forEach((icon) => icon.classList.add("swal2-icon-show"));
           slot.appendChild(clone);
           const dismiss = () => {
             if (slot.isConnected) slot.remove();
             if (stack.isConnected && stack.children.length === 0)
               stack.remove();
           };
-          clone
-            .querySelector(".swal2-close")
-            ?.addEventListener("click", dismiss);
+          clone.querySelector(".swal2-close")?.addEventListener("click", dismiss);
           if (timerMs) setTimeout(dismiss, timerMs);
         },
         didClose: () => resolve(),
@@ -151,6 +157,7 @@ export const installFlash = (Swal, config) => {
   });
 
   const meta = extractMeta(queue);
+  applyPersistent(queue);
   const mode = meta.mode || config.flashArrayMode || "sequential";
   const delay =
     meta.delay != null
