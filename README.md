@@ -765,7 +765,7 @@ Flash entries are `{ key: "notice", options: { text: "..." } }` for string value
 Per-mode side effects:
 
 - **importmap**: appends `pin "sweetalert2", to: "sweetalert2.esm.all.js"` and `pin "swal_rails", to: "swal_rails/index.js"` to `config/importmap.rb`; appends `import "swal_rails"` to `app/javascript/application.js`.
-- **jsbundling**: runs `yarn add sweetalert2@<pinned>` or `npm install sweetalert2@<pinned>` (based on the lockfile present); appends `import "swal_rails"` to `app/javascript/application.js`.
+- **jsbundling**: runs `yarn add sweetalert2@<pinned> swal_rails@<version>` or `npm install sweetalert2@<pinned> swal_rails@<version>` (based on the lockfile present); appends `import "swal_rails"` to `app/javascript/application.js`. The `swal_rails` npm package ships the same JS runtime as the gem, making the bare specifier `import "swal_rails"` resolvable by any bundler (esbuild, webpack, vite, rollup) without additional configuration.
 - **sprockets**: appends `//= link sweetalert2.js` and `//= link sweetalert2.css` to `app/assets/config/manifest.js`.
 
 All append operations are idempotent — running the generator twice is safe.

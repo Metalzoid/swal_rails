@@ -99,8 +99,13 @@ module SwalRails
 
       def install_jsbundling
         if file_exists?("package.json")
-          run "yarn add sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if file_exists?("yarn.lock")
-          run "npm install sweetalert2@#{SwalRails::SWEETALERT2_VERSION}" if file_exists?("package-lock.json") && !file_exists?("yarn.lock")
+          if file_exists?("yarn.lock")
+            run "yarn add sweetalert2@#{SwalRails::SWEETALERT2_VERSION}"
+            run "yarn add swal_rails@#{SwalRails::VERSION}"
+          elsif file_exists?("package-lock.json")
+            run "npm install sweetalert2@#{SwalRails::SWEETALERT2_VERSION}"
+            run "npm install swal_rails@#{SwalRails::VERSION}"
+          end
         else
           say_status(:warn, "package.json not found", :yellow)
         end
