@@ -32,4 +32,5 @@ require_relative "swal_rails/configuration"
 require_relative "swal_rails/asset_manifest"
 require_relative "swal_rails/initializer_version_check"
 require_relative "swal_rails/helpers"
+require_relative "swal_rails/turbo_stream_helper"
 require_relative "swal_rails/engine" if defined?(Rails::Engine)

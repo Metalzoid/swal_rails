@@ -29,6 +29,10 @@ module SwalRails
       app.config.importmap.cache_sweepers << root.join("vendor/javascript")
     end
 
+    initializer "swal_rails.turbo_stream_helper", after: :load_config_initializers do
+      Turbo::Streams::TagBuilder.prepend(SwalRails::TurboStreamHelper) if defined?(Turbo::Streams::TagBuilder)
+    end
+
     initializer "swal_rails.helpers" do
       ActiveSupport.on_load(:action_controller_base) do
         helper SwalRails::Helpers

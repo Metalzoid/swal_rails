@@ -1,6 +1,7 @@
 import Swal from "sweetalert2"
 import { installConfirm } from "swal_rails/confirm"
 import { installFlash } from "swal_rails/flash"
+import { installStreamAction } from "swal_rails/stream"
 
 const readMeta = (name) => {
   const el = document.querySelector(`meta[name="${name}"]`)
@@ -38,6 +39,7 @@ const boot = () => {
     }
 
     installConfirm(Mixin, config)
+    installStreamAction(Mixin)
     booted = { Swal: Mixin, config }
     document.dispatchEvent(new CustomEvent("swal-rails:ready", { detail: booted }))
   }
