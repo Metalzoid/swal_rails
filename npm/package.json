@@ -1,6 +1,6 @@
 {
   "name": "swal_rails",
-  "version": "0.6.0",
+  "version": "0.5.1",
   "description": "SweetAlert2 for Rails 7+ — batteries included (jsbundling companion)",
   "type": "module",
   "main": "index.js",
