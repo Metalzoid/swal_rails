@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-28
+
+### Added
+- **Turbo Stream action `swal`** — `Turbo.StreamActions.swal` is registered at
+  boot, reading a JSON payload from the `<template>` element and calling
+  `Swal.fire()`. Covers `format.turbo_stream` responses, which never fire
+  `turbo:load` / `turbo:render` and were therefore silently ignored by the
+  existing meta-tag flash path.
+  Closes [#27](https://github.com/Metalzoid/swal_rails/issues/27).
+- **`turbo_stream.swal(options)`** — emits a `<turbo-stream action="swal">`
+  tag with free-form SweetAlert2 options.
+- **`turbo_stream.swal_flash(key, message, **overrides)`** — flash-map-aware
+  shortcut; maps the key through `SwalRails.configuration.flash_map` and
+  merges `text:` + any overrides.
+- **npm exports entry `swal_rails/stream`** — added to `package.json` exports
+  map for jsbundling users.
+
 ## [0.5.0] - 2026-05-27
 
 ### Added
