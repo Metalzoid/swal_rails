@@ -88,8 +88,6 @@ jobs:
 
       - name: Sync JS files and publish to npm
         if: steps.tag.outputs.should_release == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           bundle exec rake npm:sync
-          cd npm && npm publish --access public
+          cd npm && npm publish --provenance --access public
