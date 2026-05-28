@@ -26,7 +26,7 @@ module SwalRails
     #   turbo_stream.swal_flash(:notice, "Élément créé avec succès")
     #   turbo_stream.swal_flash(:error, "Échec", timer: 0)
     def swal_flash(key, message = nil, **overrides)
-      base = SwalRails.configuration.flash_map.fetch(key.to_s, {}).dup
+      base = SwalRails.configuration.flash_map.fetch(key.to_sym, {}).dup
       base = base.merge(text: message) if message
       base = base.merge(overrides) unless overrides.empty?
       swal(base)

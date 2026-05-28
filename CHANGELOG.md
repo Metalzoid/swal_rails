@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-05-28
+
+### Fixed
+- **`turbo_stream.swal_flash` key resolution** — `flash_map` stores Symbol keys
+  but `swal_flash` was fetching with `key.to_s`, always missing and emitting a
+  tag without `icon`/`toast`/`position`/`timer`. Changed to `key.to_sym`.
+  Closes [#29](https://github.com/Metalzoid/swal_rails/issues/29).
+
 ## [0.5.1] - 2026-05-28
 
 ### Added
