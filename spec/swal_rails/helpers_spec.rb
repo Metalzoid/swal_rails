@@ -152,6 +152,56 @@ RSpec.describe SwalRails::Helpers do
       expect(tag).to include("&quot;_stackDelay&quot;:250")
       expect(tag.scan("&quot;key&quot;:&quot;alert&quot;").size).to eq(2)
     end
+
+    it "attaches _muteKey meta-key when mute_key is provided" do
+      view.swal_flash(:notice, "Saved", mute_key: "posts.saved")
+      expect(view.flash[:notice]).to include(_muteKey: "posts.saved")
+    end
+
+    it "round-trips _muteKey through swal_flash_meta_tag" do
+      view.swal_flash(:notice, "Saved", mute_key: "posts.saved")
+      tag = view.swal_flash_meta_tag
+      expect(tag).to include("&quot;_muteKey&quot;:&quot;posts.saved&quot;")
+    end
+  end
+
+  describe "#build_flash_payload with preferences disabled (default)" do
+    it "never resolves the owner / calls current_user" do
+      owner_view = Class.new(klass) do
+        attr_reader :current_user_called
+
+        def initialize
+          super
+          @current_user_called = false
+        end
+
+        def current_user
+          @current_user_called = true
+          nil
+        end
+      end.new
+      owner_view.flash = { "notice" => "Saved" }
+
+      owner_view.swal_flash_meta_tag
+
+      expect(owner_view.current_user_called).to be(false)
+    end
+  end
+
+  describe "#build_flash_payload with preferences enabled" do
+    before { view.flash = flash_klass.new }
+
+    it "filters out entries whose mute_key is already suppressed for the current owner" do
+      allow(SwalRails::Preferences).to receive(:enabled?).and_return(true)
+      allow(SwalRails::Preferences).to receive(:suppressed_keys).and_return(["posts.saved"])
+
+      view.swal_flash(:notice, "Saved", mute_key: "posts.saved")
+      view.swal_flash(:alert, "Oops", mute_key: "posts.failed")
+
+      tag = view.swal_flash_meta_tag
+      expect(tag).not_to include("Saved")
+      expect(tag).to include("Oops")
+    end
   end
 
   describe "#swal_rails_meta_tags" do
@@ -167,6 +217,59 @@ RSpec.describe SwalRails::Helpers do
       out = view.swal_rails_meta_tags
       expect(out).to include('name="swal-config"')
       expect(out).not_to include('name="swal-flash"')
+    end
+
+    it "omits the preferences tag when preferences are disabled (default)" do
+      out = view.swal_rails_meta_tags
+      expect(out).not_to include('name="swal-preferences"')
+    end
+
+    it "includes the preferences tag when preferences are enabled" do
+      # Gated on Preferences.enabled? (config flag AND table existence); stub
+      # it since the unit-test env has no ActiveRecord table.
+      allow(SwalRails::Preferences).to receive(:enabled?).and_return(true)
+      allow(SwalRails::Preferences).to receive(:suppressed_keys).and_return([])
+      out = view.swal_rails_meta_tags
+      expect(out).to include('name="swal-preferences"')
+    end
+  end
+
+  describe "#swal_preferences_meta_tag" do
+    it "returns nil when preferences are disabled (default)" do
+      expect(view.swal_preferences_meta_tag).to be_nil
+    end
+
+    it "returns nil when the config flag is on but the table is missing (half-installed)" do
+      SwalRails.configuration.preferences_enabled = true
+      # Preferences.enabled? is false here (no AR table), so no tag is emitted
+      # and the JS store degrades to localStorage for everyone.
+      expect(view.swal_preferences_meta_tag).to be_nil
+    ensure
+      SwalRails.configuration.preferences_enabled = false
+    end
+
+    it "emits enabled/owner/keys when preferences are enabled" do
+      allow(SwalRails::Preferences).to receive(:enabled?).and_return(true)
+      allow(SwalRails::Preferences).to receive(:suppressed_keys).and_return([])
+
+      tag = view.swal_preferences_meta_tag
+      expect(tag).to include('name="swal-preferences"')
+      expect(tag).to include("&quot;enabled&quot;:true")
+      expect(tag).to include("&quot;owner&quot;:false")
+      expect(tag).to include("&quot;keys&quot;:[]")
+    end
+
+    it "marks owner as present when current_user_method resolves a record" do
+      allow(SwalRails::Preferences).to receive(:enabled?).and_return(true)
+      allow(SwalRails::Preferences).to receive(:suppressed_keys).and_return([])
+      owner_view = Class.new(klass) do
+        def current_user = "owner-record"
+      end.new
+
+      tag = owner_view.swal_preferences_meta_tag
+      expect(tag).to include("&quot;owner&quot;:true")
+    ensure
+      SwalRails.configuration.preferences_enabled = false
     end
   end
 

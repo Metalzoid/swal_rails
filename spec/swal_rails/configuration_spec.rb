@@ -35,6 +35,18 @@ RSpec.describe SwalRails::Configuration do
     it "defaults every flash_map key to toast: true" do
       expect(config.flash_map.values.map { |v| v[:toast] }).to all(be(true))
     end
+
+    it "defaults preferences_enabled to false" do
+      expect(config.preferences_enabled).to be(false)
+    end
+
+    it "defaults current_user_method to :current_user" do
+      expect(config.current_user_method).to eq(:current_user)
+    end
+
+    it "defaults preferences_parent_controller to ActionController::Base" do
+      expect(config.preferences_parent_controller).to eq("ActionController::Base")
+    end
   end
 
   describe "#flash_array_mode=" do
@@ -115,6 +127,18 @@ RSpec.describe SwalRails::Configuration do
         i18n = config.to_client_payload[:i18n]
         expect(i18n[:confirm_button_text]).to eq("OK mate")
         expect(i18n[:cancel_button_text]).to eq("Nope")
+      end
+    end
+
+    it "surfaces the mute_label translation into the payload" do
+      config.i18n_scope = "swal_rails_cfg_spec_mute"
+      I18n.backend.store_translations(
+        :en,
+        swal_rails_cfg_spec_mute: { mute_label: "Don't show this again" }
+      )
+
+      I18n.with_locale(:en) do
+        expect(config.to_client_payload[:i18n][:mute_label]).to eq("Don't show this again")
       end
     end
   end

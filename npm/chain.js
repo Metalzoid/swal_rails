@@ -36,7 +36,7 @@ const normalizeStep = (step) => {
   return { onConfirmed, onDenied, sa2Options }
 }
 
-export const chainDialogs = async (Swal, steps) => {
+const runChain = async (Swal, steps) => {
   if (!Array.isArray(steps) || steps.length === 0) return true
 
   for (const step of steps) {
@@ -48,13 +48,29 @@ export const chainDialogs = async (Swal, steps) => {
 
     if (result.isDismissed) return false
     if (result.isConfirmed) {
-      if (Array.isArray(onConfirmed)) return chainDialogs(Swal, onConfirmed)
+      if (Array.isArray(onConfirmed)) return runChain(Swal, onConfirmed)
       continue
     }
     if (result.isDenied) {
-      if (Array.isArray(onDenied)) return chainDialogs(Swal, onDenied)
+      if (Array.isArray(onDenied)) return runChain(Swal, onDenied)
       return false
     }
   }
   return true
+}
+
+// Runs `steps`. With `muteKey`/`store`, the first step gets a "don't show
+// this again" checkbox; if the chain runs to completion (resolves `true`)
+// and the checkbox was checked, the whole chain is suppressed for next time.
+export const chainDialogs = async (Swal, steps, { muteKey, store } = {}) => {
+  if (!Array.isArray(steps) || steps.length === 0) return true
+  if (!muteKey || !store) return runChain(Swal, steps)
+
+  const [first, ...rest] = steps
+  const { onConfirmed, onDenied, ...sa2Options } = first || {}
+  const { options, getChecked } = store.attachCheckbox(sa2Options, muteKey)
+
+  const result = await runChain(Swal, [{ ...options, onConfirmed, onDenied }, ...rest])
+  if (result && getChecked()) store.suppress(muteKey)
+  return result
 }

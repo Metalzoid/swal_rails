@@ -48,4 +48,11 @@ SwalRails.configure do |config|
   # Override per-request with `swal_flash :alert, msgs, mode: :stacked, delay: 300`.
   config.flash_array_mode  = :sequential
   config.flash_stack_delay = 500
+
+  # "Don't show this again" preferences are off by default. Run
+  # `rails g swal_rails:preferences` to add the migration, mount the
+  # suppressions API, and uncomment config.preferences_enabled here.
+  # config.preferences_enabled = false
+  # config.current_user_method = :current_user
+  # config.preferences_parent_controller = "ActionController::Base"
 end

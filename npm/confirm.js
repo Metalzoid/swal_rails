@@ -1,4 +1,5 @@
 import { chainDialogs } from "swal_rails/chain"
+import { store as defaultStore } from "swal_rails/preferences"
 
 const parseJSON = (value) => {
   if (!value) return null
@@ -18,7 +19,7 @@ const messagePayload = (message) => {
   return null
 }
 
-const confirmDialog = (Swal, message, element) => {
+const confirmDialog = (Swal, message, element, store) => {
   const dataset = element?.dataset || {}
   const payload = messagePayload(message)
   const fromMessage = payload && !Array.isArray(payload) ? payload : null
@@ -37,25 +38,47 @@ const confirmDialog = (Swal, message, element) => {
   // Merge order (later wins): defaults → data-swal-* shortcuts → JSON message
   // (turbo_confirm: {}) → data-swal-options (most specific).
   const extras = parseJSON(dataset.swalOptions) || {}
-  return Swal.fire({ ...options, ...(fromMessage || {}), ...extras }).then((result) => result.isConfirmed)
+  let fireOptions = { ...options, ...(fromMessage || {}), ...extras }
+
+  const muteKey = dataset.swalMuteKey
+  let getChecked = () => false
+  if (muteKey && store) {
+    ({ options: fireOptions, getChecked } = store.attachCheckbox(fireOptions, muteKey))
+  }
+
+  return Swal.fire(fireOptions).then((result) => {
+    if (result.isConfirmed && muteKey && store && getChecked()) store.suppress(muteKey)
+    return result.isConfirmed
+  })
 }
 
 // Dispatches to either a multi-step chain or a single-step confirm. Called
 // from both the Turbo override and the data-attribute listener so both
 // paths behave identically.
-const confirmFlow = (Swal, message, element) => {
+//
+// `data-swal-mute-key` makes the confirm opt-in dismissable: once the
+// key is suppressed, the action auto-confirms — no modal, no checkbox.
+const confirmFlow = (Swal, message, element, store) => {
+  const muteKey = element?.dataset?.swalMuteKey
+  if (muteKey && store?.isSuppressed(muteKey)) return Promise.resolve(true)
+
   const fromDataset = parseJSON(element?.dataset?.swalSteps)
-  if (Array.isArray(fromDataset) && fromDataset.length) return chainDialogs(Swal, fromDataset)
+  if (Array.isArray(fromDataset) && fromDataset.length) return chainDialogs(Swal, fromDataset, { muteKey, store })
 
   const payload = messagePayload(message)
-  if (Array.isArray(payload) && payload.length) return chainDialogs(Swal, payload)
+  if (Array.isArray(payload) && payload.length) return chainDialogs(Swal, payload, { muteKey, store })
 
-  return confirmDialog(Swal, message, element)
+  return confirmDialog(Swal, message, element, store)
 }
 
-const installTurboOverride = (Swal) => {
+const installTurboOverride = (Swal, store) => {
   if (typeof window.Turbo === "undefined") return false
-  const handler = (message, element) => confirmFlow(Swal, message, element)
+  // Turbo calls the confirm method with (message, formElement, submitter).
+  // For `button_to`/`link_to` the `data-swal-*` attributes (including
+  // data-swal-mute-key) live on the clicked element, i.e. the submitter — not
+  // the generated <form>. Prefer the submitter so those attributes are seen;
+  // fall back to the form element when there's no submitter (e.g. Enter key).
+  const handler = (message, element, submitter) => confirmFlow(Swal, message, submitter || element, store)
   // Turbo 8.1+ renamed the API to `Turbo.config.forms.confirm`. The legacy
   // `setConfirmMethod` still works but emits a deprecation warning. Prefer
   // the new path, fall back to the old one for older Turbo versions.
@@ -70,14 +93,14 @@ const installTurboOverride = (Swal) => {
   return false
 }
 
-const installDataAttribute = (Swal) => {
+const installDataAttribute = (Swal, store) => {
   const handler = (event) => {
     const el = event.target.closest("[data-swal-confirm], [data-swal-steps]")
     if (!el) return
     const message = el.getAttribute("data-swal-confirm")
     event.preventDefault()
     event.stopPropagation()
-    confirmFlow(Swal, message, el).then((confirmed) => {
+    confirmFlow(Swal, message, el, store).then((confirmed) => {
       if (!confirmed) return
       el.removeAttribute("data-swal-confirm")
       el.removeAttribute("data-swal-steps")
@@ -95,9 +118,9 @@ const installDataAttribute = (Swal) => {
   document.addEventListener("submit", handler, true)
 }
 
-export const installConfirm = (Swal, config) => {
+export const installConfirm = (Swal, config, store = defaultStore) => {
   const mode = config.confirmMode || "data_attribute"
   if (mode === "off") return
-  if (mode === "turbo_override" || mode === "both") installTurboOverride(Swal)
-  if (mode === "data_attribute" || mode === "both") installDataAttribute(Swal)
+  if (mode === "turbo_override" || mode === "both") installTurboOverride(Swal, store)
+  if (mode === "data_attribute" || mode === "both") installDataAttribute(Swal, store)
 }

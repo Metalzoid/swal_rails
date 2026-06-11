@@ -4,6 +4,7 @@ en:
     cancel_button_text: "Cancel"
     deny_button_text: "No"
     close_button_aria_label: "Close this dialog"
+    mute_label: "Don't show this again"
     confirm:
       title: "Are you sure?"
       confirm_button_text: "Yes"

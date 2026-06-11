@@ -4,6 +4,7 @@ fr:
     cancel_button_text: "Annuler"
     deny_button_text: "Non"
     close_button_aria_label: "Fermer cette fenêtre"
+    mute_label: "Ne plus afficher ce message"
     confirm:
       title: "Êtes-vous sûr ?"
       confirm_button_text: "Oui"

@@ -33,6 +33,7 @@ Ruby view helpers, and full I18n. Everything is configurable.
   - [Turbo confirmations](#turbo-confirmations)
   - [`data-swal-confirm` attribute](#data-swal-confirm-attribute)
   - [Multi-step confirmations](#multi-step-confirmations)
+  - ["Don't show this again" preferences](#dont-show-this-again-preferences)
   - [Stimulus controller](#stimulus-controller)
   - [Ruby view helpers](#ruby-view-helpers)
   - [Programmatic JS](#programmatic-js)
@@ -43,6 +44,7 @@ Ruby view helpers, and full I18n. Everything is configurable.
   - [Stimulus controller reference](#stimulus-controller-reference)
   - [JS runtime](#js-runtime)
   - [Generators](#generators)
+  - [Preferences API](#preferences-api)
   - [Flash value shapes](#flash-value-shapes)
   - [Chain semantics](#chain-semantics)
 - [I18n](#-i18n)
@@ -280,10 +282,12 @@ swal_flash :alert, "Form incomplete", now: true
 swal_flash :notice, "Deployed!", icon: "rocket", timer: 5000
 ```
 
-Signature: `swal_flash(key, messages, mode: nil, delay: nil, now: false, **options)`.
-`mode:` and `delay:` are stored on the flash entry as reserved `_arrayMode` /
-`_stackDelay` meta-keys, extracted by the JS runtime before the options are
-handed to `Swal.fire` — they never leak into SA2.
+Signature: `swal_flash(key, messages, mode: nil, delay: nil, now: false, mute_key: nil, **options)`.
+`mode:`, `delay:`, and `mute_key:` are stored on the flash entry as
+reserved `_arrayMode` / `_stackDelay` / `_muteKey` meta-keys, extracted by
+the JS runtime before the options are handed to `Swal.fire` — they never leak
+into SA2. See ["Don't show this again" preferences](#dont-show-this-again-preferences)
+for `mute_key:`.
 
 #### Persistent (non-auto-closing) entries
 
@@ -452,6 +456,70 @@ load (same CSP nonce and XSS hardening as `swal_tag`):
 
 ---
 
+### "Don't show this again" preferences
+
+Any muteable confirm, flash/toast, chain, or turbo_stream can carry a
+**`mute_key`** — a unique, stable string you choose. A checkbox appears
+next to it; checking it suppresses that alert for good:
+
+- **Confirms** (single-step, chain, or `data-turbo-confirm`) auto-confirm
+  once suppressed — the action proceeds, no modal, no checkbox.
+- **Flash, toasts, and turbo_stream `swal`/`swal_flash`** simply don't fire
+  once suppressed.
+
+The checkbox is **opt-in**: it only appears where you pass `mute_key:` /
+`data-swal-mute-key`. Logged-in users (resolved via
+`config.current_user_method`) get suppressions persisted to the DB; guests
+fall back to `localStorage`.
+
+```erb
+<%# Confirm — checkbox shown, action auto-confirms once muted %>
+<%= button_to "Delete", post_path(@post), method: :delete, data: {
+      turbo_confirm: "Sure?", swal_mute_key: "posts.destroy"
+    } %>
+```
+
+```ruby
+# Flash
+swal_flash :notice, "Saved", mute_key: "posts.saved"
+
+# Turbo Stream
+turbo_stream.swal_flash(:notice, "Saved", mute_key: "posts.saved")
+turbo_stream.swal({ icon: "info", title: "Tip" }, mute_key: "tips.welcome")
+```
+
+For `data-swal-steps` / array `data-turbo-confirm` chains, add
+`data-swal-mute-key` to the trigger element — the checkbox appears on the
+**first step**, and checking it plus completing the whole chain suppresses
+it next time.
+
+#### Enabling DB persistence
+
+By default, suppressions live only in `localStorage` (per-browser). To
+persist them in your app's database for logged-in users:
+
+```sh
+bin/rails g swal_rails:preferences
+bin/rails db:migrate
+```
+
+This adds a `swal_rails_dismissed_alerts` table (polymorphic `owner`),
+mounts `SwalRails::Engine` for the suppressions API, and sets
+`config.preferences_enabled = true` in your initializer. It's safe to run
+post-install, on any existing app — see
+[Generators](#generators) and [Preferences API](#preferences-api).
+
+#### Resetting suppressions
+
+```ruby
+SwalRails::Preferences.reset_all                          # everyone, every key
+SwalRails::Preferences.reset(key: "posts.saved")          # everyone, one key
+SwalRails::Preferences.reset(owner: current_user)         # one user, every key
+SwalRails::Preferences.reset(owner: current_user, key: "posts.saved")
+```
+
+---
+
 ### Stimulus controller
 
 For fully declarative popups without touching JS:
@@ -496,8 +564,9 @@ Lower-level helpers (injected by the generator into your layout):
 ```erb
 <%= swal_rails_meta_tags %>
 <%# expands to: %>
-<%= swal_config_meta_tag %>  <%# serializes SwalRails.configuration %>
-<%= swal_flash_meta_tag %>   <%# serializes current flash, if any %>
+<%= swal_config_meta_tag %>       <%# serializes SwalRails.configuration %>
+<%= swal_flash_meta_tag %>        <%# serializes current flash, if any %>
+<%= swal_preferences_meta_tag %>  <%# suppression state, if preferences_enabled %>
 ```
 
 ---
@@ -549,7 +618,10 @@ SwalRails.reset_configuration!             # resets to defaults (test fixture he
 | `flash_map`              | Hash    | see below          | Flash-key → SA2 options mapping. Keys normalized to symbols. Non-Hash assignment raises `ArgumentError`. |
 | `flash_array_mode`       | Symbol  | `:sequential`      | How multi-entry flash payloads are played: `:sequential` (one at a time, waits for close) or `:stacked` (all in parallel, stacked top-right). Validated. |
 | `flash_stack_delay`      | Integer | `500`              | Milliseconds between each toast's appearance in `:stacked` mode. |
-| `i18n_scope`             | String  | `"swal_rails"`     | I18n scope used to look up `confirm_button_text`, `cancel_button_text`, `deny_button_text`, `close_button_aria_label`. Non-string values are coerced. |
+| `i18n_scope`             | String  | `"swal_rails"`     | I18n scope used to look up `confirm_button_text`, `cancel_button_text`, `deny_button_text`, `close_button_aria_label`, `mute_label`. Non-string values are coerced. |
+| `preferences_enabled`    | Boolean | `false`            | Enables the "don't show this again" DB-backed suppression lookup/API. Set by `rails g swal_rails:preferences`. When `false`, `mute_key` checkboxes still work via `localStorage` for everyone. |
+| `current_user_method`    | Symbol  | `:current_user`    | Controller/view method used to resolve the current owner for suppressions (e.g. `:current_user` for Devise, `:rodauth_account` for Rodauth). `nil` or a missing method means "guest". |
+| `preferences_parent_controller` | String | `"ActionController::Base"` | Constant name (lazily resolved) that `SwalRails::SuppressionsController` inherits from — set to `"ApplicationController"` to share auth/CSRF before_actions. |
 
 `confirm_mode` accepted values:
 
@@ -610,9 +682,10 @@ in every controller-side rendering context.
 
 | Helper                             | Returns                                   | Description |
 | ---------------------------------- | ----------------------------------------- | ----------- |
-| `swal_rails_meta_tags`             | `ActiveSupport::SafeBuffer`               | Emits `swal_config_meta_tag` + `swal_flash_meta_tag` joined with `"\n"`. Call once, in `<head>`. |
+| `swal_rails_meta_tags`             | `ActiveSupport::SafeBuffer`               | Emits `swal_config_meta_tag` + `swal_flash_meta_tag` + `swal_preferences_meta_tag` joined with `"\n"`. Call once, in `<head>`. |
 | `swal_config_meta_tag`             | `ActiveSupport::SafeBuffer`               | Emits `<meta name="swal-config" content="…JSON…">` with the serialized `SwalRails.configuration.to_client_payload`. |
-| `swal_flash_meta_tag`              | `ActiveSupport::SafeBuffer` or `nil`      | Emits `<meta name="swal-flash" content="…JSON…">` if `flash_keys_as_meta` is enabled **and** the current `flash` is non-empty; otherwise returns `nil`. |
+| `swal_flash_meta_tag`              | `ActiveSupport::SafeBuffer` or `nil`      | Emits `<meta name="swal-flash" content="…JSON…">` if `flash_keys_as_meta` is enabled **and** the current `flash` is non-empty; otherwise returns `nil`. Entries whose `mute_key` is already suppressed for the current owner are filtered out. |
+| `swal_preferences_meta_tag`        | `ActiveSupport::SafeBuffer` or `nil`      | Emits `<meta name="swal-preferences" content="…JSON…">` when `config.preferences_enabled` is `true`; otherwise `nil`. Payload: `{ enabled, owner, path, keys }` — see [Meta-tag contract](#js-runtime). |
 | `swal_tag(options, html_options)`  | `ActiveSupport::SafeBuffer`               | Inline `<script type="module">` firing `Swal.fire(options)` once. Options are JSON-escaped to neutralize `</script>`, `<!--`, U+2028, U+2029. |
 | `swal_chain_tag(steps, html_options)` | `ActiveSupport::SafeBuffer`            | Inline `<script type="module">` firing `chainDialogs(Swal, steps)`. `steps` is an Array of Hashes (single Hash is auto-wrapped). Same escape hardening as `swal_tag`. |
 
@@ -648,6 +721,7 @@ All attributes are read from the element's `dataset`. Values carry through `butt
 | `data-swal-confirm-text`  | String                       | `confirmButtonText` |
 | `data-swal-cancel-text`   | String                       | `cancelButtonText` |
 | `data-swal-options`       | JSON Object (stringified)    | Full SA2 options — **wins over** all shortcuts and over the JSON object form of `data-swal-confirm` |
+| `data-swal-mute-key`      | String                       | Opt-in unique key — adds a "don't show this again" checkbox. Once suppressed, the confirm/chain auto-confirms (no modal). See ["Don't show this again" preferences](#dont-show-this-again-preferences). |
 
 Merge order (later wins):
 
@@ -662,6 +736,8 @@ defaults → data-swal-* shortcuts → JSON object in data-swal-confirm → data
 | `data-swal-steps`         | JSON Array of step Hashes (stringified) | Runs the chain. Per-step defaults `{ showCancelButton: true, focusCancel: true, icon: "warning" }` are merged first and can be overridden key-by-key. Every step is a full SA2 options Hash plus the optional `onConfirmed` / `onDenied` sub-chain keys. |
 
 Both attributes coexist — if `data-swal-steps` is present and non-empty, it takes precedence over `data-swal-confirm`.
+
+`data-swal-mute-key` on the trigger element applies to the whole chain — the checkbox appears on step 1 only.
 
 #### Turbo `data-turbo-confirm`
 
@@ -724,6 +800,7 @@ import { Swal } from "swal_rails"                         // named re-export (sa
 import { chainDialogs, CHAIN_DEFAULTS } from "swal_rails/chain"
 import { installConfirm } from "swal_rails/confirm"       // for custom boot sequences
 import { installFlash } from "swal_rails/flash"           // same
+import { store, injectMuteCheckbox } from "swal_rails/preferences" // suppression store
 ```
 
 #### `chainDialogs(Swal, steps)`
@@ -751,10 +828,11 @@ Returns `true` iff a complete path through the chain was confirmed. `steps` may 
 
 #### Meta-tag contract
 
-| Meta name     | Payload | Read by |
-| ------------- | ------- | ------- |
-| `swal-config` | `to_client_payload` JSON | Runtime boot — mixin, confirm handler, flash handler. Once per page. |
-| `swal-flash`  | Array of `{ key, options }` | Flash runtime — re-read on every `turbo:load`. |
+| Meta name           | Payload | Read by |
+| ------------------- | ------- | ------- |
+| `swal-config`       | `to_client_payload` JSON | Runtime boot — mixin, confirm handler, flash handler. Once per page. |
+| `swal-flash`        | Array of `{ key, options }` | Flash runtime — re-read on every `turbo:load`. |
+| `swal-preferences`  | `{ enabled, owner, path, keys }` | Preferences store — re-read on every `turbo:load`, before flashes fire. `owner: false` → suppressions also merged from `localStorage["swal_rails:muted"]`. `path` is the suppressions API URL, omitted if the engine isn't mounted. |
 
 Flash entries are `{ key: "notice", options: { text: "..." } }` for string values, or `{ key: "notice", options: {...user hash...} }` for Hash values. Arrays in `flash[key]` are expanded into one entry per element.
 
@@ -786,6 +864,105 @@ All append operations are idempotent — running the generator twice is safe.
 #### `bin/rails g swal_rails:locales`
 
 No flags. Copies `config/locales/swal_rails.en.yml` and `swal_rails.fr.yml` from the gem into your app's `config/locales/`.
+
+#### `bin/rails g swal_rails:preferences`
+
+Installs DB-backed "don't show this again" persistence. Run any time after
+`swal_rails:install` — each step is independently idempotent.
+
+| Flag           | Type    | Default | Description |
+| -------------- | ------- | ------- | ----------- |
+| `--uuid`       | Boolean | `false` | Use `uuid` instead of `bigint` for `owner_id`, for apps with UUID primary keys. |
+| `--skip_route` | Boolean | `false` | Don't mount `SwalRails::Engine` in `config/routes.rb`. |
+
+What it does:
+
+1. Generates `db/migrate/..._create_swal_rails_dismissed_alerts.rb` — creates
+   `swal_rails_dismissed_alerts` (`owner_type`, `owner_id`, `key`,
+   timestamps) with a unique index on `[owner_type, owner_id, key]` and an
+   index on `key`.
+2. Adds `mount SwalRails::Engine => "/swal_rails"` to `config/routes.rb`
+   (skip-able, and skipped if already present).
+3. Sets `config.preferences_enabled = true` (and uncomments
+   `current_user_method` / `preferences_parent_controller`) in
+   `config/initializers/swal_rails.rb`.
+
+Then run `bin/rails db:migrate`. See
+["Don't show this again" preferences](#dont-show-this-again-preferences) for
+usage and [Preferences API](#preferences-api) for the Ruby/HTTP surface.
+
+---
+
+### Preferences API
+
+Everything below is only active when `config.preferences_enabled = true`
+(set by `rails g swal_rails:preferences`) **and** the
+`swal_rails_dismissed_alerts` table exists. Otherwise these are safe no-ops —
+`mute_key` checkboxes still work via `localStorage`.
+
+#### `SwalRails::Preferences`
+
+| Method | Returns | Description |
+| ------ | ------- | ----------- |
+| `suppressed?(owner, key)`   | Boolean | Whether `owner` has muted `key`. `owner: nil` (guest) always returns `false` — guests are tracked client-side only. |
+| `suppressed_keys(owner)`    | `Array<String>` | All keys `owner` has muted. Used to populate `<meta name="swal-preferences">` and to filter `build_flash_payload`. |
+| `suppress(owner, key)`      | — | Records `owner` muting `key`. Race-safe (`create_or_find_by!`); requires non-nil `owner`. |
+| `unsuppress(owner, key)`    | — | Removes one suppression. |
+| `reset_all`                 | — | Deletes **all** rows — every owner, every key. |
+| `reset(owner: nil, key: nil)` | — | Scoped delete: both nil → same as `reset_all`; `key:` only → that key for everyone; `owner:` only → that owner's preferences entirely; both → that owner+key pair. |
+
+`owner` is any ActiveRecord model instance (stored polymorphically as
+`owner_type`/`owner_id`) — typically `current_user`, but any authenticatable
+record works (Devise user, Rodauth account, etc).
+
+#### `SwalRails::DismissedAlert`
+
+The backing model (`app/models/swal_rails/dismissed_alert.rb`):
+
+```ruby
+class SwalRails::DismissedAlert < ActiveRecord::Base
+  self.table_name = "swal_rails_dismissed_alerts"
+  belongs_to :owner, polymorphic: true
+  validates :key, presence: true, uniqueness: { scope: %i[owner_type owner_id] }
+end
+```
+
+#### Suppressions HTTP API
+
+Mounted at `SwalRails::Engine => "/swal_rails"` (path configurable via the
+mount point in `config/routes.rb`). All actions require a resolvable owner
+(`config.current_user_method`) — `head :unauthorized` otherwise.
+`SwalRails::SuppressionsController` inherits from
+`config.preferences_parent_controller`.
+
+| Method   | Path           | Body | Response |
+| -------- | -------------- | ---- | -------- |
+| `GET`    | `/suppressions` | —    | `200 { keys: [...] }` |
+| `POST`   | `/suppressions` | `{ key: "..." }` | `201` |
+| `DELETE` | `/suppressions` | `{ key: "..." }` | `204` |
+
+The JS preferences store calls `POST`/`path` with `X-CSRF-Token` (read from
+`<meta name="csrf-token">`) when `store.suppress(key)` runs for a known
+owner; guests never hit this API.
+
+**Security & abuse limits.** Every action is scoped to the server-resolved
+owner — `key` is the only client input, so a client can never read or alter
+another owner's suppressions (no IDOR), and all queries are parameterized
+ActiveRecord (no SQL injection). To bound abuse by an authenticated client,
+`POST` writes are capped: keys longer than `SwalRails::Preferences::MAX_KEY_LENGTH`
+(255) and writes beyond `MAX_KEYS_PER_OWNER` (1000 new keys per owner) are
+silently ignored — keeping the table and the per-request `<meta>` payload from
+being flooded. Two caveats for your own hardening:
+
+- **CSRF on API parents.** `protect_from_forgery` is only applied when the
+  parent controller supports it. If you set
+  `config.preferences_parent_controller` to an `ActionController::API` base
+  (no `RequestForgeryProtection`) **and** authenticate via cookie session, add
+  CSRF protection yourself — otherwise this state-changing endpoint is
+  CSRF-exposed. Token/JWT auth is unaffected.
+- **Rate limiting.** The gem does not throttle the endpoint. For public-facing
+  apps, add a limiter (e.g. `Rack::Attack`, or Rails 8's `rate_limit`) on
+  `POST /swal_rails/suppressions`.
 
 ---
 
