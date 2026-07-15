@@ -93,6 +93,57 @@ RSpec.describe SwalRails::Helpers do
       view.flash = { notice: "Saved" }
       expect(view.swal_flash_meta_tag).to include("&quot;key&quot;:&quot;notice&quot;")
     end
+
+    # Devise :timeoutable writes flash[:timedout] = true alongside the real
+    # :alert message. Only the message should reach the payload.
+    it "skips a non-message flag while keeping the real message" do
+      view.flash = { "timedout" => true, "alert" => "Votre session a expiré" }
+      tag = view.swal_flash_meta_tag
+      expect(tag).to include("Votre session a expiré")
+      expect(tag).not_to include("&quot;key&quot;:&quot;timedout&quot;")
+      expect(tag).not_to include("&quot;text&quot;:&quot;true&quot;")
+    end
+
+    it "returns nil when the flash holds only non-message flags" do
+      view.flash = { "timedout" => true }
+      expect(view.swal_flash_meta_tag).to be_nil
+    end
+
+    it "drops non-message elements from an array while keeping the strings" do
+      view.flash = { "notice" => ["Saved", true, "Done"] }
+      tag = view.swal_flash_meta_tag
+      expect(tag).to include("Saved")
+      expect(tag).to include("Done")
+      expect(tag.scan("&quot;key&quot;:&quot;notice&quot;").size).to eq(2)
+    end
+  end
+
+  describe "#build_flash_payload" do
+    it "renders String and Hash values" do
+      view.flash = { "notice" => "Saved", "alert" => { text: "Bad", icon: "error" } }
+      expect(view.build_flash_payload).to eq(
+        [
+          { key: "notice", options: { text: "Saved" } },
+          { key: "alert", options: { text: "Bad", icon: "error" } }
+        ]
+      )
+    end
+
+    # Non-regression for #36 — a boolean is not blank?, so only a type gate stops it.
+    it "ignores values that are neither String nor Hash" do
+      view.flash = { "timedout" => true }
+      expect(view.build_flash_payload).to eq([])
+    end
+
+    it "ignores every other non-message scalar" do
+      view.flash = { "a" => false, "b" => :sym, "c" => 42, "d" => Object.new }
+      expect(view.build_flash_payload).to eq([])
+    end
+
+    it "still renders an ActiveSupport::SafeBuffer" do
+      view.flash = { "notice" => "Saved".html_safe }
+      expect(view.build_flash_payload).to eq([{ key: "notice", options: { text: "Saved" } }])
+    end
   end
 
   describe "#swal_flash" do
@@ -134,6 +185,16 @@ RSpec.describe SwalRails::Helpers do
     it "skips blank messages and writes nothing when list is empty" do
       view.swal_flash(:alert, ["", nil])
       expect(view.flash[:alert]).to be_nil
+    end
+
+    it "writes nothing when the message is neither String nor Hash" do
+      view.swal_flash(:notice, 42)
+      expect(view.flash[:notice]).to be_nil
+    end
+
+    it "drops non-message elements from an array" do
+      view.swal_flash(:alert, ["a", true, "b"])
+      expect(view.flash[:alert]).to eq([{ text: "a" }, { text: "b" }])
     end
 
     it "preserves a Hash message and merges overrides" do

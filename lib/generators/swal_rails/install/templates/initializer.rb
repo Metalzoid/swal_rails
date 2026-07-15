@@ -32,7 +32,9 @@ SwalRails.configure do |config|
   }
 
   # Map Rails flash keys to SweetAlert2 options.
-  # Set a key to nil to silence it. Customize icon/toast/position/timer per key.
+  # Customize icon/toast/position/timer per key. A key that is absent from the
+  # map — or set to nil — is not silenced: it falls back to a generic info toast
+  # (top-end, 3s). Only String/Hash flash values are rendered at all.
   config.flash_map[:notice]  = { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
   config.flash_map[:success] = { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
   config.flash_map[:alert]   = { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false }

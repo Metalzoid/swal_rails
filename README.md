@@ -582,6 +582,8 @@ SwalRails.reset_configuration!             # resets to defaults (test fixture he
 > 💡 **Prefer a modal for errors?** Override in your initializer:
 > `config.flash_map[:alert] = { icon: "error", toast: false }`.
 
+A flash key that is absent from the map — or explicitly set to `nil` — is **not** silenced: the runtime falls back to a generic info toast (`icon: "info"`, `toast: true`, `position: "top-end"`, `timer: 3000`). `flash_map` selects *how* a message renders, never *whether* it renders. What a key is never asked to render is a non-`String`/`Hash` value — see [Flash value shapes](#flash-value-shapes).
+
 #### `to_client_payload` (internal, read-only)
 
 Serialization contract consumed by the JS runtime via the
@@ -756,7 +758,7 @@ Returns `true` iff a complete path through the chain was confirmed. `steps` may 
 | `swal-config` | `to_client_payload` JSON | Runtime boot — mixin, confirm handler, flash handler. Once per page. |
 | `swal-flash`  | Array of `{ key, options }` | Flash runtime — re-read on every `turbo:load`. |
 
-Flash entries are `{ key: "notice", options: { text: "..." } }` for string values, or `{ key: "notice", options: {...user hash...} }` for Hash values. Arrays in `flash[key]` are expanded into one entry per element.
+Flash entries are `{ key: "notice", options: { text: "..." } }` for string values, or `{ key: "notice", options: {...user hash...} }` for Hash values. Arrays in `flash[key]` are expanded into one entry per element. Values of any other type are omitted from the payload entirely — see [Flash value shapes](#flash-value-shapes).
 
 ---
 
@@ -795,8 +797,9 @@ No flags. Copies `config/locales/swal_rails.en.yml` and `swal_rails.fr.yml` from
 | ---------- | ----------- |
 | `String`   | `{ text: value }` — safe by default (SA2 renders via `text:`, no HTML injection). |
 | `Hash`     | Full SA2 options, **shadows** `flash_map[key]`. Any SA2 key is accepted (icon, timer, input, html, iconHtml, …). |
-| `Array`    | Expanded into one entry per element. Strings become `{ text: elem }`, Hashes pass through verbatim. |
+| `Array`    | Expanded into one entry per element. Strings become `{ text: elem }`, Hashes pass through verbatim. Non-renderable elements are dropped individually. |
 | `nil` / `""` / `blank?` | Skipped. |
+| Anything else (`true`, `Symbol`, `Integer`, arbitrary objects) | Skipped — a technical flag is not a message. Covers Devise `:timeoutable`, which writes `flash[:timedout] = true` next to the real `:alert`. |
 
 Key normalization: Hash keys are `symbolize_keys`-ed before serialization, so `flash[:notice] = { "text" => "..." }` and `flash[:notice] = { text: "..." }` are equivalent.
 
