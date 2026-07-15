@@ -1004,7 +1004,7 @@ swal_rails/
 │   └── generators/
 │       ├── install/               # bin/rails g swal_rails:install
 │       └── locales/               # bin/rails g swal_rails:locales
-├── vendor/javascript/sweetalert2/ # pinned SA2 v11.26.24 (MIT)
+├── vendor/javascript/sweetalert2/ # pinned SA2 v11.26.25 (MIT)
 ├── spec/
 │   └── dummy/                     # minimal Rails app for system tests
 ├── Appraisals                     # Rails 7.2 → 8.1 + sprockets variant
