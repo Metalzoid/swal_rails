@@ -6,6 +6,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-07-15
+
+### Fixed
+- **Toast parasite `true` sur un flash non-message** — `build_flash_payload` ne
+  filtrait que sur `blank?`, or `true.blank?` est `false` : un flash booléen
+  passait le filtre et devenait `{ text: "true" }` via `to_s`. Devise
+  `:timeoutable` pose `flash[:timedout] = true` à côté du vrai `:alert` à
+  l'expiration de session, d'où un toast bleu affichant littéralement `true` sur
+  la page de login. La clé n'étant pas dans `flash_map`, le runtime JS y
+  appliquait en plus son fallback (`icon: info`, `position: top-end`) — mais la
+  chaîne était fabriquée côté serveur. Les valeurs qui ne sont ni `String` ni
+  `Hash` sont désormais ignorées : un flag technique n'est pas un message. Même
+  garde dans `swal_flash`, où une valeur non rendable devient un no-op plutôt
+  qu'un toast absurde. Aucune app n'était fautive — le bug touchait toute
+  combinaison Devise + `swal_rails`.
+  Closes [#36](https://github.com/Metalzoid/swal_rails/issues/36).
+- **Doc : `flash_map[:key] = nil` ne silence pas une clé** — l'initializer généré
+  affirmait « Set a key to nil to silence it ». C'est faux : `nil` sérialise en
+  `null`, le runtime résout le spec via une chaîne `||` et retombe donc sur son
+  fallback (`icon: info`, `position: top-end`, 3s) — la clé s'affiche, en pire.
+  `flash_map` choisit *comment* un message est rendu, jamais *s'il* est rendu.
+  Commentaire du template corrigé et fallback documenté dans le README ; le
+  comportement du code est inchangé.
+
 ## [0.5.3] - 2026-07-15
 
 ### Changed

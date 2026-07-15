@@ -33,12 +33,17 @@ module SwalRails
     # Also accepts per-request option overrides:
     #   flash[:notice] = "Saved"                                       # string shortcut
     #   flash[:notice] = { text: "Saved", icon: "star", timer: 5000 }  # full SA2 options
+    #
+    # Values that are neither String nor Hash are technical flags, not messages —
+    # Devise `:timeoutable` writes `flash[:timedout] = true` — so they are skipped
+    # rather than stringified into a toast reading "true".
     def build_flash_payload
       flash.to_h.flat_map do |key, message|
         flash_messages(message).filter_map do |m|
           next if m.blank?
+          next unless m.is_a?(String) || m.is_a?(Hash)
 
-          options = m.is_a?(Hash) ? m.symbolize_keys : { text: m.to_s }
+          options = m.is_a?(Hash) ? m.symbolize_keys : { text: m }
           { key: key.to_s, options: options }
         end
       end
@@ -80,12 +85,15 @@ module SwalRails
       meta
     end
 
+    # Same String/Hash gate as build_flash_payload — a non-message value is
+    # dropped, and an all-dropped list leaves the flash key unwritten.
     def build_swal_flash_entries(messages, meta, options)
       list = messages.is_a?(Array) ? messages : [messages]
       list.filter_map do |m|
         next if m.blank?
+        next unless m.is_a?(String) || m.is_a?(Hash)
 
-        base = m.is_a?(Hash) ? m.symbolize_keys : { text: m.to_s }
+        base = m.is_a?(Hash) ? m.symbolize_keys : { text: m }
         base.merge(options).merge(meta)
       end
     end
