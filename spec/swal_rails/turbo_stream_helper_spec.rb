@@ -40,6 +40,17 @@ RSpec.describe SwalRails::TurboStreamHelper do
       out = tag_builder.swal({ icon: "info", title: "Hi" })
       expect(out).not_to include("_muteKey")
     end
+
+    it "extracts mute_key even when nested inside the positional hash" do
+      out = tag_builder.swal({ icon: "info", mute_key: "tips.welcome" })
+      expect(out).to include('"_muteKey":"tips.welcome"')
+      expect(out).not_to include("mute_key")
+    end
+
+    it "degrades a nil positional argument to empty options instead of raising" do
+      expect { tag_builder.swal(nil) }.not_to raise_error
+      expect(tag_builder.swal(nil)).to include('<turbo-stream action="swal">')
+    end
   end
 
   describe "#swal_flash" do

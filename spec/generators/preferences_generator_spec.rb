@@ -63,6 +63,7 @@ RSpec.describe SwalRails::Generators::PreferencesGenerator, type: :generator do
       contents = File.read(files.first)
       expect(contents).to include("class CreateSwalRailsDismissedAlerts < ActiveRecord::Migration")
       expect(contents).to include("create_table :swal_rails_dismissed_alerts")
+      expect(contents).to include("t.string :owner_type, null: false, limit: 191")
       expect(contents).to include("t.bigint :owner_id, null: false")
       expect(contents).to include("t.string :key, null: false, limit: 255")
       expect(contents).to include("add_index :swal_rails_dismissed_alerts, %i[owner_type owner_id key],")

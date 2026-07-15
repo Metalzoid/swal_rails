@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     back to `localStorage`.
   - Suppressed confirms auto-confirm (the action proceeds, no modal);
     suppressed flash/toasts/streams simply don't fire.
+  - In `:turbo_override` / `:both` confirm modes, `data-swal-*` attributes
+    (including `data-swal-mute-key`) are read from the **clicked element** —
+    the Turbo submitter, e.g. the `button_to` button — not the generated
+    `<form>`. Put swal data attributes on the button/link (the documented
+    `button_to` usage); attributes on a wrapping `<form>` are not read.
   - New `<meta name="swal-preferences">` tag carries suppression state to the
     JS runtime per request.
   - `SwalRails::Preferences` Ruby API: `reset_all`, `reset(owner:, key:)`

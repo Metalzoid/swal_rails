@@ -21,13 +21,15 @@ module SwalRails
     #
     # Accepts both the positional-hash form (`swal({ icon: "info" })`) and the
     # bare-keyword form (`swal(icon: "info", title: "Hi")`) that worked in
-    # 0.5.x. The `**opts` splat catches stray keywords and `mute_key:`, merging
-    # everything back into a single SA2 options hash.
+    # 0.5.x. The `**opts` splat catches stray keywords and `mute_key:`, merged
+    # back into a single SA2 options hash. `mute_key` is honored wherever it
+    # lands (positional hash or keyword) so it never leaks into Swal.fire, and a
+    # nil positional arg degrades to `{}` rather than raising.
     def swal(options = {}, **opts)
-      mute_key = opts.delete(:mute_key)
-      options = options.merge(opts)
-      options = options.merge(_muteKey: mute_key.to_s) if mute_key
-      payload = ERB::Util.json_escape(options.to_json)
+      merged = (options || {}).merge(opts)
+      mute_key = merged.delete(:mute_key)
+      merged = merged.merge(_muteKey: mute_key.to_s) if mute_key
+      payload = ERB::Util.json_escape(merged.to_json)
       turbo_stream_action_tag(:swal, template: payload)
     end
 

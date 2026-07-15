@@ -12,4 +12,7 @@ Rails.application.routes.draw do
   get  "/chain",   to: "pages#chain_page"
   delete "/items/:id", to: "pages#destroy", as: :item
   delete "/items_chain/:id", to: "pages#destroy_chain", as: :item_chain
+
+  # Mounted so the suppressions HTTP API can be exercised by request specs.
+  mount SwalRails::Engine => "/swal_rails"
 end
