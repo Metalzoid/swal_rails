@@ -21,7 +21,10 @@ module SwalRails
                   :expose_window_swal,
                   :flash_stack_delay,
                   :initializer_version,
-                  :silence_initializer_warning
+                  :silence_initializer_warning,
+                  :preferences_enabled,
+                  :current_user_method,
+                  :preferences_parent_controller
     attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode,
                 :assets_mode, :precompile_strategy
 
@@ -49,6 +52,17 @@ module SwalRails
       # to `:minimal` once you've confirmed your host doesn't reference
       # extra variants directly.
       @precompile_strategy = :all
+      # "Don't show this again" preferences. Off by default — enable via the
+      # `swal_rails:preferences` generator, which also creates the migration
+      # and mounts the engine.
+      @preferences_enabled = false
+      # Method called on the controller to fetch the current owner record
+      # for persisting muted-alert preferences (Devise, Rodauth, custom…).
+      @current_user_method = :current_user
+      # Parent class for SwalRails::SuppressionsController, as a String so it
+      # can be constantized lazily (the host's auth base class may not be
+      # loaded yet when the initializer runs).
+      @preferences_parent_controller = "ActionController::Base"
       # `focusConfirm` / `returnFocus` are intentionally omitted: SA2 already
       # defaults both to `true` internally, and passing them explicitly makes
       # SA2 warn on every toast ("incompatible with toasts"). Listing them
@@ -133,7 +147,7 @@ module SwalRails
     def i18n_payload
       return {} unless defined?(I18n)
 
-      %i[confirm_button_text cancel_button_text deny_button_text close_button_aria_label].each_with_object({}) do |key, h|
+      %i[confirm_button_text cancel_button_text deny_button_text close_button_aria_label mute_label].each_with_object({}) do |key, h|
         translation = I18n.t("#{i18n_scope}.#{key}", default: nil)
         h[key] = translation if translation
       end

@@ -2,6 +2,7 @@ import Swal from "sweetalert2"
 import { installConfirm } from "swal_rails/confirm"
 import { installFlash } from "swal_rails/flash"
 import { installStreamAction } from "swal_rails/stream"
+import { store } from "swal_rails/preferences"
 
 const readMeta = (name) => {
   const el = document.querySelector(`meta[name="${name}"]`)
@@ -38,14 +39,17 @@ const boot = () => {
       window.Swal = Mixin
     }
 
-    installConfirm(Mixin, config)
-    installStreamAction(Mixin)
+    installConfirm(Mixin, config, store)
+    installStreamAction(Mixin, store)
     booted = { Swal: Mixin, config }
     document.dispatchEvent(new CustomEvent("swal-rails:ready", { detail: booted }))
   }
 
   // Flash meta is re-rendered per request, so read and fire on every page.
-  installFlash(booted.Swal, booted.config)
+  // installFlash() also refreshes the preferences store (per-request meta)
+  // before firing — including on pages with no flash, so confirm suppression
+  // stays current.
+  installFlash(booted.Swal, booted.config, store)
   return booted.Swal
 }
 

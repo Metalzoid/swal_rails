@@ -12,6 +12,7 @@ module SwalRails
       swal_rails/flash.js
       swal_rails/chain.js
       swal_rails/stream.js
+      swal_rails/preferences.js
       swal_rails/controllers/swal_controller.js
       swal_rails/index.css
     ].freeze

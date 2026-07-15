@@ -7,9 +7,9 @@ module SwalRails
   #   - the global client config (once per request)
   #   - the per-request flash payload
   module Helpers
-    # Emits the two meta tags the JS runtime reads on boot.
+    # Emits the meta tags the JS runtime reads on boot.
     def swal_rails_meta_tags
-      safe_join([swal_config_meta_tag, swal_flash_meta_tag].compact, "\n")
+      safe_join([swal_config_meta_tag, swal_flash_meta_tag, swal_preferences_meta_tag].compact, "\n")
     end
 
     def swal_config_meta_tag
@@ -27,6 +27,29 @@ module SwalRails
       tag.meta(name: "swal-flash", content: payload.to_json)
     end
 
+    # Emits `<meta name="swal-preferences">` with the "don't show this
+    # again" state for the current request: whether preferences are
+    # enabled, whether the visitor is a known owner (vs. guest/localStorage),
+    # the suppressions API path (omitted if the engine isn't mounted), and
+    # the keys this owner has already muted.
+    def swal_preferences_meta_tag
+      # Gate on Preferences.enabled? (config flag AND the table actually
+      # existing), not just the config flag. In a half-installed state
+      # (generator run, migration pending) we emit no tag, so the JS store
+      # treats everyone as a guest and falls back to localStorage instead of
+      # POSTing to an API that would silently no-op.
+      return unless SwalRails::Preferences.enabled?
+
+      owner = swal_rails_current_owner
+      payload = {
+        enabled: true,
+        owner: owner.present?,
+        path: swal_rails_suppressions_path,
+        keys: swal_rails_suppressed_keys
+      }.compact
+      tag.meta(name: "swal-preferences", content: payload.to_json)
+    end
+
     # Rails idiom: `flash[:notice] = model.errors.full_messages` — expand arrays
     # into one entry per message so each fires its own Swal.
     #
@@ -34,11 +57,14 @@ module SwalRails
     #   flash[:notice] = "Saved"                                       # string shortcut
     #   flash[:notice] = { text: "Saved", icon: "star", timer: 5000 }  # full SA2 options
     def build_flash_payload
+      suppressed = swal_rails_suppressed_keys
       flash.to_h.flat_map do |key, message|
         flash_messages(message).filter_map do |m|
           next if m.blank?
 
           options = m.is_a?(Hash) ? m.symbolize_keys : { text: m.to_s }
+          next if options[:_muteKey] && suppressed.include?(options[:_muteKey])
+
           { key: key.to_s, options: options }
         end
       end
@@ -60,12 +86,15 @@ module SwalRails
     # `mode:` — :sequential | :stacked (overrides config.flash_array_mode for this payload)
     # `delay:` — ms between stacked toasts (overrides config.flash_stack_delay)
     # `now:`   — write to flash.now (for rendered responses, no redirect)
+    # `mute_key:` — unique key enabling a "don't show this again" checkbox;
+    #               once muted, this entry is filtered server-side (owners)
+    #               or by the JS runtime (guests, via localStorage)
     # `**options` — any extra SA2 options merged into each entry
     #
-    # Meta-keys `_arrayMode` / `_stackDelay` are reserved — the JS runtime
-    # strips them before passing options to Swal.fire.
-    def swal_flash(key, messages, mode: nil, delay: nil, now: false, **options) # rubocop:disable Metrics/ParameterLists
-      entries = build_swal_flash_entries(messages, swal_flash_meta(mode, delay), options)
+    # Meta-keys `_arrayMode` / `_stackDelay` / `_muteKey` are reserved —
+    # the JS runtime strips them before passing options to Swal.fire.
+    def swal_flash(key, messages, mode: nil, delay: nil, now: false, mute_key: nil, **options) # rubocop:disable Metrics/ParameterLists
+      entries = build_swal_flash_entries(messages, swal_flash_meta(mode, delay, mute_key), options)
       return if entries.empty?
 
       (now ? flash.now : flash)[key] = entries.size == 1 ? entries.first : entries
@@ -73,11 +102,49 @@ module SwalRails
 
     private
 
-    def swal_flash_meta(mode, delay)
+    def swal_flash_meta(mode, delay, mute_key = nil)
       meta = {}
       meta[:_arrayMode] = mode.to_s if mode
       meta[:_stackDelay] = Integer(delay) if delay
+      meta[:_muteKey] = mute_key.to_s if mute_key
       meta
+    end
+
+    # Resolves the current owner via `config.current_user_method`, if the
+    # controller/view responds to it. Returns nil for guests or when
+    # preferences aren't enabled.
+    def swal_rails_current_owner
+      method_name = SwalRails.configuration.current_user_method
+      return nil unless method_name && respond_to?(method_name, true)
+
+      send(method_name)
+    end
+
+    # Memoized per-request: keys the current owner has muted for good.
+    #
+    # Short-circuits before resolving the owner when preferences are off (the
+    # default), so `build_flash_payload` never invokes the host's
+    # `current_user` — with its potential DB hits or exceptions — on the flash
+    # path of an app that doesn't use this feature.
+    def swal_rails_suppressed_keys
+      return @swal_rails_suppressed_keys if defined?(@swal_rails_suppressed_keys)
+
+      @swal_rails_suppressed_keys =
+        if SwalRails::Preferences.enabled?
+          SwalRails::Preferences.suppressed_keys(swal_rails_current_owner)
+        else
+          []
+        end
+    end
+
+    # The mounted suppressions API path, or nil if the engine isn't mounted
+    # (the JS runtime then falls back to localStorage-only for guests).
+    def swal_rails_suppressions_path
+      return nil unless respond_to?(:swal_rails)
+
+      swal_rails.suppressions_path
+    rescue NoMethodError
+      nil
     end
 
     def build_swal_flash_entries(messages, meta, options)

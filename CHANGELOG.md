@@ -6,6 +6,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-10
+
+### Added
+- **"Don't show this again" preferences** — opt-in `mute_key:` /
+  `data-swal-mute-key` on confirms, flash/toasts, chains, and turbo_stream
+  actions adds a checkbox; checking it suppresses that alert for good.
+  - Logged-in users (per `config.current_user_method`) are persisted to a new
+    `swal_rails_dismissed_alerts` table (polymorphic `owner`); guests fall
+    back to `localStorage`.
+  - Suppressed confirms auto-confirm (the action proceeds, no modal);
+    suppressed flash/toasts/streams simply don't fire.
+  - In `:turbo_override` / `:both` confirm modes, `data-swal-*` attributes
+    (including `data-swal-mute-key`) are read from the **clicked element** —
+    the Turbo submitter, e.g. the `button_to` button — not the generated
+    `<form>`. Put swal data attributes on the button/link (the documented
+    `button_to` usage); attributes on a wrapping `<form>` are not read.
+  - New `<meta name="swal-preferences">` tag carries suppression state to the
+    JS runtime per request.
+  - `SwalRails::Preferences` Ruby API: `reset_all`, `reset(owner:, key:)`
+    (global / per-key / per-owner / per-owner-per-key).
+  - Mounted engine API (`SwalRails::Engine` → `/swal_rails`) for
+    `GET/POST/DELETE suppressions`. Owner-scoped (no IDOR), parameterized
+    queries, and `POST` writes bounded by `MAX_KEY_LENGTH` (255) /
+    `MAX_KEYS_PER_OWNER` (1000) to prevent table/meta-tag flooding.
+  - New `rails g swal_rails:preferences` generator: migration, route mount,
+    and initializer config — installable post-install, opt-in via
+    `config.preferences_enabled` (default `false`).
+  - New config: `preferences_enabled`, `current_user_method`,
+    `preferences_parent_controller`.
+  - New `swal_rails/preferences` JS module (npm + importmap).
+  - New `swal_rails.mute_label` i18n key (en/fr).
+
 ## [0.5.2] - 2026-05-28
 
 ### Fixed

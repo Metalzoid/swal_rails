@@ -1,3 +1,5 @@
+import { injectMuteCheckbox, store as defaultStore } from "swal_rails/preferences";
+
 // Read the meta tag exactly once per page load. Boot() fires on both
 // DOMContentLoaded and turbo:load, so without this guard an array flash
 // would have its fireNext chain launched twice, racing and cascading via
@@ -27,6 +29,14 @@ const extractMeta = (queue) => {
     for (const k of META_KEYS) delete item[k];
   }
   return { mode, delay };
+};
+
+// Per-item "don't show this again" key. Unlike _arrayMode/_stackDelay this
+// isn't a shared meta — every entry carries its own (or none).
+const extractMuteKey = (item) => {
+  const key = item._muteKey;
+  delete item._muteKey;
+  return key || null;
 };
 
 // Per-item: _persistent removes the auto-close timer and ensures the user
@@ -68,11 +78,22 @@ const ensureStackContainer = () => {
   return el;
 };
 
-const fireSequential = (Swal, queue) => {
+const fireSequential = (Swal, queue, keys, store) => {
   const fireNext = () => {
     const opts = queue.shift();
+    const key = keys.shift();
     if (!opts) return;
-    Swal.fire(opts).then(fireNext);
+
+    let fireOptions = opts;
+    let getChecked = () => false;
+    if (key && store) {
+      ({ options: fireOptions, getChecked } = store.attachCheckbox(opts, key));
+    }
+
+    Swal.fire(fireOptions).then(() => {
+      if (key && store && getChecked()) store.suppress(key);
+      fireNext();
+    });
   };
   fireNext();
 };
@@ -83,10 +104,11 @@ const fireSequential = (Swal, queue) => {
 // original fast so the next fire is unblocked. The clones live on in our
 // stack with their own timer and click-to-dismiss handlers. Empiler des
 // modales bloquantes n'a pas de sens — on force toast: true.
-const fireStacked = async (Swal, queue, delay) => {
+const fireStacked = async (Swal, queue, keys, delay, store) => {
   const stack = ensureStackContainer();
   for (let i = 0; i < queue.length; i++) {
     const opts = queue[i];
+    const key = keys[i];
     const slot = document.createElement("div");
     slot.className = "swal-rails-stack-slot";
     slot.style.cssText = "width:100%;pointer-events:auto;";
@@ -114,6 +136,8 @@ const fireStacked = async (Swal, queue, delay) => {
         // (display:grid, icon classes, close-button grid placement, etc.),
         // so the clone requires no manual fixups.
         didOpen: (popup) => {
+          if (key && store) injectMuteCheckbox(popup, store.label);
+
           const clone = popup.cloneNode(true);
           // willOpen set opacity:0 on the original; clear it on the clone.
           clone.style.opacity = "";
@@ -121,7 +145,19 @@ const fireStacked = async (Swal, queue, delay) => {
             .querySelectorAll(".swal2-timer-progress-bar-container")
             .forEach((e) => e.remove());
           slot.appendChild(clone);
+
+          // cloneNode(true) copies DOM but not listeners. Grab the clone's
+          // checkbox (the one the user sees/clicks) and read its FINAL state
+          // at dismiss time — matching the getChecked()-after-resolve
+          // semantics of every other path, so a check-then-uncheck before the
+          // toast closes does NOT permanently mute.
+          const muteCheckbox =
+            key && store
+              ? clone.querySelector(".swal-rails-mute input[type=checkbox]")
+              : null;
+
           const dismiss = () => {
+            if (muteCheckbox?.checked) store.suppress(key);
             if (slot.isConnected) slot.remove();
             if (stack.isConnected && stack.children.length === 0)
               stack.remove();
@@ -139,12 +175,19 @@ const fireStacked = async (Swal, queue, delay) => {
   }
 };
 
-export const installFlash = (Swal, config) => {
+export const installFlash = (Swal, config, store = defaultStore) => {
+  // Refresh the suppression store on every boot (each turbo:load/render),
+  // BEFORE the early-return below — a page with no flash can still hold
+  // confirm buttons whose mute state must be current. Defaulting `store` to
+  // the singleton means custom boot sequences calling installFlash(Swal,
+  // config) still get fully-wired suppression without threading the store.
+  store.refresh(config);
+
   const flashes = readFlash();
   if (!flashes.length) return;
 
   const map = config.flashMap || {};
-  const queue = flashes.map((flash) => {
+  let queue = flashes.map((flash) => {
     const spec = map[flash.key] ||
       map[flash.key.toLowerCase()] || {
         icon: "info",
@@ -155,6 +198,17 @@ export const installFlash = (Swal, config) => {
     // Per-request options win over the per-key defaults from flash_map.
     return { ...spec, ...(flash.options || {}) };
   });
+
+  let keys = queue.map(extractMuteKey);
+
+  // Owners are already filtered server-side (build_flash_payload); for
+  // guests, drop entries suppressed via localStorage here.
+  const kept = queue
+    .map((opts, i) => ({ opts, key: keys[i] }))
+    .filter(({ key }) => !(key && store?.isSuppressed(key)));
+  if (!kept.length) return;
+  queue = kept.map((entry) => entry.opts);
+  keys = kept.map((entry) => entry.key);
 
   const meta = extractMeta(queue);
   applyPersistent(queue);
@@ -167,8 +221,8 @@ export const installFlash = (Swal, config) => {
         : 500;
 
   if (mode === "stacked" && queue.length > 1) {
-    fireStacked(Swal, queue, delay);
+    fireStacked(Swal, queue, keys, delay, store);
   } else {
-    fireSequential(Swal, queue);
+    fireSequential(Swal, queue, keys, store);
   }
 };

@@ -1,0 +1,23 @@
+# frozen_string_literal: true
+
+class CreateSwalRailsDismissedAlerts < ActiveRecord::Migration<%= migration_version %>
+  def change
+    create_table :swal_rails_dismissed_alerts do |t|
+      # Both string columns are length-capped so the composite unique index
+      # [owner_type, owner_id, key] stays within MySQL 8 / DYNAMIC row format's
+      # 3072-byte InnoDB prefix budget (191 + 255 chars utf8mb4, plus owner_id,
+      # sits well under it). owner_type only ever holds a model class name.
+      t.string :owner_type, null: false, limit: 191
+      t.<%= options[:uuid] ? "uuid" : "bigint" %> :owner_id, null: false
+      # Matches the model's length validation and
+      # SwalRails::Preferences::MAX_KEY_LENGTH.
+      t.string :key, null: false, limit: 255
+
+      t.timestamps
+    end
+
+    add_index :swal_rails_dismissed_alerts, %i[owner_type owner_id key],
+              unique: true, name: "index_swal_dismissed_alerts_uniqueness"
+    add_index :swal_rails_dismissed_alerts, :key
+  end
+end
