@@ -67,5 +67,44 @@ ready(boot)
 document.addEventListener("turbo:load", boot)
 document.addEventListener("turbo:render", boot)
 
+// Pendant du boot côté « sortie » de page. Turbo met la page en cache au
+// moment de la navigation : une popup encore dans le DOM à cet instant —
+// typiquement une popup dont l'animation de fermeture a été coupée par un
+// Turbo.visit lancé depuis son propre .then() — est capturée dans le
+// snapshot et rejoue son animation au retour arrière.
+const cleanupBeforeCache = () => {
+  // Capturés avant la fermeture : sur Safari/iOS, SA2 vide le conteneur et
+  // lui retire sa classe au lieu de le supprimer, le sélecteur ne le
+  // retrouverait plus après coup.
+  const containers = [...document.querySelectorAll(".swal2-container")]
+
+  // Une popup encore ouverte : on demande sa fermeture, puis on force la fin
+  // de l'animation que SA2 attend — l'animationend n'arrivera jamais sur une
+  // page que Turbo s'apprête à jeter. SA2 exécute alors lui-même son
+  // teardown : classes, padding du scrollbar et keydown handler sont
+  // restaurés proprement.
+  Swal.close()
+  document.querySelectorAll(".swal2-popup").forEach((popup) => {
+    popup.dispatchEvent(new AnimationEvent("animationend"))
+  })
+
+  // Ce qui reste debout part sans cérémonie : la page est démontée de toute
+  // façon. Les toasts flash sont éphémères par page (réémis via installFlash
+  // sur turbo:load), on ne fait que les retirer du snapshot.
+  containers.forEach((el) => el.remove())
+  document.getElementById("swal-rails-stack")?.remove()
+  ;[document.documentElement, document.body].forEach((el) =>
+    el.classList.remove(
+      "swal2-shown",
+      "swal2-height-auto",
+      "swal2-toast-shown",
+      "swal2-no-backdrop",
+      "swal2-iosfix"
+    )
+  )
+}
+
+document.addEventListener("turbo:before-cache", cleanupBeforeCache)
+
 export { Swal }
 export default Swal

@@ -6,6 +6,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-07-15
+
+### Changed
+- **SweetAlert2 11.26.24 → 11.26.25** — bump des assets vendorisés. Côté JS, que
+  des refactors internes (aucun changement sur le cycle d'ouverture/fermeture).
+  Côté CSS, SA2 retire la variable `--swal2-icon-animations` et la
+  `container-name: swal2-popup` introduites en 11.26.24 : les animations d'icônes
+  redeviennent inconditionnelles. Si tu surchargeais `--swal2-icon-animations`
+  pour les désactiver, passe par `respect_reduced_motion` ou `default_options`.
+
+### Fixed
+- **Popup fantôme au retour sur une page cachée par Turbo** — un nouveau handler
+  `turbo:before-cache` retire toute popup résiduelle, le conteneur de toasts
+  empilés et les classes SA2 avant la mise en cache du snapshot. Une popup dont
+  l'animation de fermeture était coupée par un `Turbo.visit` rejouait son
+  animation au retour arrière. Le handler laisse SweetAlert2 exécuter son propre
+  teardown (restauration du padding scrollbar, du keydown handler) plutôt que
+  d'arracher le DOM sous ses pieds.
+  Closes [#34](https://github.com/Metalzoid/swal_rails/issues/34).
+
 ## [0.5.2] - 2026-05-28
 
 ### Fixed
