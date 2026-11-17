@@ -123,8 +123,8 @@ module SwalRails
       {
         notice: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
         success: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
-        alert: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
-        error: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+        alert: { icon: "error", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+        error: { icon: "error", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         warning: { icon: "warning", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         info: { icon: "info", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
       }
