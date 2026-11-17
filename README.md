@@ -549,6 +549,7 @@ SwalRails.reset_configuration!             # resets to defaults (test fixture he
 | `flash_map`              | Hash    | see below          | Flash-key → SA2 options mapping. Keys normalized to symbols. Non-Hash assignment raises `ArgumentError`. |
 | `flash_array_mode`       | Symbol  | `:sequential`      | How multi-entry flash payloads are played: `:sequential` (one at a time, waits for close) or `:stacked` (all in parallel, stacked top-right). Validated. |
 | `flash_stack_delay`      | Integer | `500`              | Milliseconds between each toast's appearance in `:stacked` mode. |
+| `flash_allow_html`       | Boolean | `false`            | When `false`, the options SweetAlert2 renders as HTML (`title`, `html`, `footer`, button texts…) are HTML-escaped in **Hash** flashes. Set to `true` only if no request data can ever reach a Hash flash — see [XSS safety](#xss-safety). |
 | `i18n_scope`             | String  | `"swal_rails"`     | I18n scope used to look up `confirm_button_text`, `cancel_button_text`, `deny_button_text`, `close_button_aria_label`. Non-string values are coerced. |
 
 `confirm_mode` accepted values:
@@ -796,14 +797,14 @@ No flags. Copies `config/locales/swal_rails.en.yml` and `swal_rails.fr.yml` from
 | Value type | Rendered as |
 | ---------- | ----------- |
 | `String`   | `{ text: value }` — safe by default (SA2 renders via `text:`, no HTML injection). |
-| `Hash`     | Full SA2 options, **shadows** `flash_map[key]`. Any SA2 key is accepted (icon, timer, input, html, iconHtml, …). |
-| `Array`    | Expanded into one entry per element. Strings become `{ text: elem }`, Hashes pass through verbatim. Non-renderable elements are dropped individually. |
+| `Hash`     | Full SA2 options, **shadows** `flash_map[key]`. Any SA2 key is accepted (icon, timer, input, html, iconHtml, …); the ones SA2 renders as HTML are escaped unless `config.flash_allow_html = true`. |
+| `Array`    | Expanded into one entry per element. Strings become `{ text: elem }`, Hashes are handled as above. Non-renderable elements are dropped individually. |
 | `nil` / `""` / `blank?` | Skipped. |
 | Anything else (`true`, `Symbol`, `Integer`, arbitrary objects) | Skipped — a technical flag is not a message. Covers Devise `:timeoutable`, which writes `flash[:timedout] = true` next to the real `:alert`. |
 
 Key normalization: Hash keys are `symbolize_keys`-ed before serialization, so `flash[:notice] = { "text" => "..." }` and `flash[:notice] = { text: "..." }` are equivalent.
 
-> ⚠️ **Hash overrides bypass the `text:` safety net.** Using `html:`, `iconHtml:`, or `footer:` with untrusted input is an XSS — SweetAlert2 renders those as raw HTML by design. Rule of thumb: if the value is user-controlled, keep the String form.
+> ⚠️ **HTML in a Hash flash is escaped by default.** `flash[:notice] = { html: "<b>Saved</b>" }` shows the tags as text. To render markup, mark it `html_safe` in a `flash.now` (it does not survive a redirect: the session stores plain Strings), or set `config.flash_allow_html = true` — only if no request data can ever reach a Hash flash. See [XSS safety](#xss-safety).
 
 ---
 
@@ -879,12 +880,31 @@ breakout sequences:
   messages to SweetAlert2's `text:` option (not `html:`), so flash payloads
   are rendered as text even if they contain HTML.
 
-> ⚠️ **Hash-form overrides bypass the `text:` safety net.** When you pass a
-> Hash to `flash[key]`, `data-turbo-confirm`, `data-swal-confirm`, or
-> `data-swal-options`, its keys flow straight into `Swal.fire`. Using
-> `html:`, `iconHtml:`, or `footer:` with untrusted input is an XSS —
-> SweetAlert2 renders those as raw HTML by design. Rule of thumb: if the
-> value is user-controlled, keep the String form (or the `text:` key).
+SweetAlert2 renders some options as **HTML**: `title`, `html`, `footer`,
+`iconHtml`, `loaderHtml`, `closeButtonHtml`, the `confirm`/`cancel`/`deny`
+button texts, `inputLabel`, `inputPlaceholder`, `inputOptions`,
+`progressSteps` and validation messages. `text` and `titleText` are always
+text. Since 0.6.0 the gem never sends a plain string into one of those slots:
+
+- **String messages are text.** `data-turbo-confirm="Delete #{post.title}?"`,
+  `data-swal-confirm`, `data-swal-title`, `data-swal-text`,
+  `data-swal-confirm-text` / `-cancel-text` and the `inputExpected` /
+  `inputExpectedError` of a typed confirmation are displayed as typed — no
+  need (and no point) to escape them yourself.
+- **Hash flashes are escaped.** `flash[:notice] = params[:msg]` comes back as a
+  plain Hash after the session round-trip, so `?msg[html]=<img onerror=…>`
+  would reach `Swal.fire`. The HTML options listed above are HTML-escaped
+  unless `config.flash_allow_html = true`.
+
+> ⚠️ **JSON options in attributes are trusted markup.** A Hash or JSON array
+> in `data-turbo-confirm`, `data-swal-confirm`, `data-swal-options`,
+> `data-swal-steps` or a Stimulus `data-swal-*-value` flows straight into
+> `Swal.fire` — `html:` stays HTML there, on purpose. Keep user data in
+> `text:`. And if your app renders user-supplied HTML through a sanitizer
+> that keeps `data-*` attributes (DOMPurify does by default), forbid them
+> (`ALLOW_DATA_ATTR: false`) or at least `data-swal-*`, `data-turbo-confirm`
+> and `data-controller`: otherwise a user can plant a dialog with arbitrary
+> HTML that fires on click. Rails' `sanitize` helper already strips them.
 
 ### Content Security Policy
 

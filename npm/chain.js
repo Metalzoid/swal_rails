@@ -14,6 +14,14 @@ export const CHAIN_DEFAULTS = {
   icon: "warning"
 }
 
+// SweetAlert2 renders title, button texts and validation messages as HTML.
+// Run any plain string bound for one of those slots through this first.
+export const escapeHtml = (value) => {
+  const el = document.createElement("div")
+  el.textContent = String(value)
+  return el.innerHTML
+}
+
 // JSON-delivered steps cannot ship functions (e.g. inputValidator).
 // `inputExpected` provides a declarative guard for typed confirmations.
 const normalizeStep = (step) => {
@@ -27,7 +35,9 @@ const normalizeStep = (step) => {
 
   if (typeof inputExpected === "string") {
     const expected = inputExpected
-    const error = inputExpectedError || `Type "${expected}" to continue`
+    // The expected value is often user data ("type the project name"): the
+    // validation message is HTML, so it must be escaped.
+    const error = escapeHtml(inputExpectedError || `Type "${expected}" to continue`)
     sa2Options.inputValidator = (value) => (
       (value || "").trim() === expected ? undefined : error
     )

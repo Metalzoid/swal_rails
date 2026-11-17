@@ -1,0 +1,36 @@
+<h1 id="security-title">Security page</h1>
+
+<%# A record name holding HTML, interpolated into a confirm message —
+    the everyday `turbo_confirm: "Delete #{record.name}?"` pattern. %>
+<%= button_to "Delete (name with HTML)",
+      item_path(42),
+      method: :delete,
+      data: { swal_confirm: "Supprimer « #{PagesController::XSS_PAYLOAD} » ?" },
+      id: "confirm-xss" %>
+
+<%# "Type the name to confirm" — the expected value is user data too. %>
+<%= button_to "Delete (typed name)",
+      item_path(43),
+      method: :delete,
+      data: {
+        swal_steps: [
+          { title: "Tapez le nom du projet", input: "text", inputExpected: PagesController::XSS_PAYLOAD }
+        ].to_json
+      },
+      id: "typed-xss" %>
+
+<%# An action that keeps the page: every click must be confirmed. %>
+<p>
+  <button type="button" id="confirm-twice" data-swal-confirm="Archiver ?">Archiver</button>
+  Actions exécutées : <output id="count">0</output>
+</p>
+<script type="module">
+  const count = document.getElementById("count")
+  document.getElementById("confirm-twice").addEventListener("click", () => { count.value = Number(count.value) + 1 })
+</script>
+
+<%# Confirmation carried by the <form>, triggered from its submit button. %>
+<form id="confirm-form" action="<%= item_path(77) %>" method="post" data-swal-confirm="Supprimer l'élément 77 ?">
+  <input type="hidden" name="_method" value="delete">
+  <button id="confirm-form-btn">Supprimer (form)</button>
+</form>

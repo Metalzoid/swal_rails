@@ -1,4 +1,4 @@
-import { chainDialogs } from "swal_rails/chain"
+import { chainDialogs, escapeHtml } from "swal_rails/chain"
 
 const parseJSON = (value) => {
   if (!value) return null
@@ -24,20 +24,27 @@ const confirmDialog = (Swal, message, element) => {
   const fromMessage = payload && !Array.isArray(payload) ? payload : null
   const text = fromMessage ? undefined : message
 
+  // A String message routinely interpolates user data
+  // (`turbo_confirm: "Delete #{post.title}?"`): it is text, never HTML.
+  // `titleText` is rendered as text by SA2; `title` would be parsed as HTML.
   const options = {
-    title: dataset.swalTitle || text || "Are you sure?",
+    titleText: dataset.swalTitle || text || "Are you sure?",
     text: dataset.swalText || (dataset.swalTitle ? text : undefined),
     icon: dataset.swalIcon || "warning",
     showCancelButton: true,
     focusCancel: true
   }
-  if (dataset.swalConfirmText) options.confirmButtonText = dataset.swalConfirmText
-  if (dataset.swalCancelText) options.cancelButtonText = dataset.swalCancelText
+  if (dataset.swalConfirmText) options.confirmButtonText = escapeHtml(dataset.swalConfirmText)
+  if (dataset.swalCancelText) options.cancelButtonText = escapeHtml(dataset.swalCancelText)
 
   // Merge order (later wins): defaults → data-swal-* shortcuts → JSON message
   // (turbo_confirm: {}) → data-swal-options (most specific).
   const extras = parseJSON(dataset.swalOptions) || {}
-  return Swal.fire({ ...options, ...(fromMessage || {}), ...extras }).then((result) => result.isConfirmed)
+  const merged = { ...options, ...(fromMessage || {}), ...extras }
+  // SA2 applies titleText after title: a `title` written in JSON options
+  // must win over our fallback text.
+  if (merged.title) delete merged.titleText
+  return Swal.fire(merged).then((result) => result.isConfirmed)
 }
 
 // Dispatches to either a multi-step chain or a single-step confirm. Called
@@ -71,23 +78,31 @@ const installTurboOverride = (Swal) => {
 }
 
 const installDataAttribute = (Swal) => {
+  // Element whose confirmed action is being replayed. click() and
+  // requestSubmit() dispatch synchronously, so this lets exactly that one
+  // event through — the attributes stay, and the next click asks again.
+  let replaying = null
+
   const handler = (event) => {
     const el = event.target.closest("[data-swal-confirm], [data-swal-steps]")
-    if (!el) return
+    if (!el || el === replaying) return
+    // On a <form>, confirm the submit, not the click on its button: blocking
+    // that click would cancel the submission altogether.
+    if (event.type === "click" && el.tagName === "FORM") return
     const message = el.getAttribute("data-swal-confirm")
     event.preventDefault()
     event.stopPropagation()
     confirmFlow(Swal, message, el).then((confirmed) => {
       if (!confirmed) return
-      el.removeAttribute("data-swal-confirm")
-      el.removeAttribute("data-swal-steps")
-      if (typeof el.click === "function" && event.type === "click") {
-        el.click()
-      } else if (el.tagName === "FORM") {
+      replaying = el
+      try {
+        if (el.tagName !== "FORM") el.click()
         // requestSubmit() fires the 'submit' event, so Turbo and any UJS
         // handlers stay in the loop — unlike the raw .submit() which skips them.
-        if (typeof el.requestSubmit === "function") el.requestSubmit()
+        else if (typeof el.requestSubmit === "function") el.requestSubmit(event.submitter)
         else el.submit()
+      } finally {
+        replaying = null
       }
     })
   }

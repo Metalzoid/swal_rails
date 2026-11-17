@@ -50,4 +50,10 @@ SwalRails.configure do |config|
   # Override per-request with `swal_flash :alert, msgs, mode: :stacked, delay: 300`.
   config.flash_array_mode  = :sequential
   config.flash_stack_delay = 500
+
+  # A Hash flash (`flash[:notice] = { html: "…" }`) is passed to SweetAlert2 as
+  # options. Those it renders as HTML (title, html, footer, button texts…) are
+  # escaped, because a params Hash copied into the flash would otherwise inject
+  # markup. Set to true only if no request data can ever reach a Hash flash.
+  config.flash_allow_html = false
 end

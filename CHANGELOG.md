@@ -6,6 +6,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
+Release de sécurité : mise à jour recommandée pour toutes les versions
+antérieures.
+
+### Security
+- **XSS via le message de confirmation** — le message String de
+  `data-turbo-confirm` / `data-swal-confirm` partait dans l'option `title` de
+  SweetAlert2, qui est rendue en HTML. Comme l'échappement ERB est défait par le
+  navigateur à la lecture de l'attribut, l'idiome courant
+  `turbo_confirm: "Supprimer #{post.title} ?"` exécutait le HTML contenu dans le
+  titre du record. Même défaut pour `data-swal-title`,
+  `data-swal-confirm-text` et `data-swal-cancel-text`. Le message passe
+  désormais par `titleText` (rendu en texte) et les textes de bouton sont
+  échappés. Un `title` donné explicitement dans des options JSON reste du HTML.
+- **XSS via `inputExpected`** — la valeur attendue d'une confirmation tapée
+  (« tapez le nom du projet ») était recopiée dans le message de validation,
+  rendu en HTML. Le message (y compris `inputExpectedError`) est échappé.
+- **XSS via un flash Hash venu des paramètres** — un Hash dans le flash part tel
+  quel en options SweetAlert2. Or `flash[:notice] = params[:msg]` suivi d'une
+  redirection devient un vrai Hash après l'aller-retour JSON de la session :
+  `?msg[html]=<img onerror=…>` injectait du HTML. Les options rendues en HTML
+  (`title`, `html`, `footer`, `iconHtml`, textes de bouton, `inputLabel`…) sont
+  désormais échappées dans les flash Hash.
+- **Contournement de la confirmation** (mode `data_attribute`) — après une
+  première confirmation, les attributs `data-swal-confirm` / `data-swal-steps`
+  étaient retirés pour toujours : un élément resté dans la page (réponse Turbo
+  Stream, retour arrière depuis le cache Turbo) déclenchait son action sans
+  confirmation au clic suivant. De plus, un `<form data-swal-confirm>` soumis
+  par son bouton ne partait pas après confirmation, puis partait sans
+  confirmation au clic suivant. La confirmation est désormais redemandée à
+  chaque fois, et le formulaire est soumis avec son bouton d'origine
+  (`requestSubmit(submitter)`).
+
+### Added
+- `config.flash_allow_html` (défaut `false`) : rétablit le HTML brut dans les
+  flash Hash, pour les applications où aucune donnée de requête ne peut
+  atteindre un flash Hash. Une valeur `html_safe` posée dans un `flash.now`
+  reste rendue en HTML.
+
+### Changed
+- **Le HTML d'un flash Hash est échappé par défaut** — rupture pour qui affichait
+  volontairement du HTML via `flash[:x] = { html: … }` après une redirection :
+  passer par `flash.now` + `html_safe`, ou `config.flash_allow_html = true`.
+- **Messages de confirmation déjà échappés à la main** — un message qui
+  contenait `ERB::Util.html_escape(nom)` pour contourner l'ancien défaut
+  affichera maintenant les entités (`&#39;`, `&amp;`) : retirer l'échappement.
+- Paquet npm : `peerDependencies.sweetalert2` passe de `>=11.0.0` à
+  `>=11.22.4`, la première version sans le code caché signalé par
+  GHSA-qq6h-5g6j-q3cm / GHSA-mrr8-v49w-3333.
+- Template d'initializer `0.6.0` (nouvelle option `flash_allow_html`) : le
+  boot signale les initializers plus anciens.
+
 ## [0.5.4] - 2026-07-15
 
 ### Fixed
