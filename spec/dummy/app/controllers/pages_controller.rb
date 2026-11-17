@@ -1,6 +1,12 @@
 # frozen_string_literal: true
 
 class PagesController < ApplicationController
+  # Visible proof of execution: a red banner at the top of the page.
+  XSS_PAYLOAD = <<~HTML.delete("\n")
+    <img src="x" onerror="document.body.insertAdjacentHTML('afterbegin',
+    '<p id=pwned style=background:#c00;color:#fff;padding:1em;font-size:2em>XSS exécuté</p>')">
+  HTML
+
   def index; end
   def plain; end
 
@@ -37,6 +43,16 @@ class PagesController < ApplicationController
 
   def chain_page
     render :chain
+  end
+
+  def security_page
+    render :security
+  end
+
+  # Deliberate anti-pattern: a request parameter copied into the flash.
+  # `msg[html]=…` arrives as a nested Hash after the session round-trip.
+  def reflect_flash
+    redirect_to root_path, notice: params[:msg]
   end
 
   def destroy

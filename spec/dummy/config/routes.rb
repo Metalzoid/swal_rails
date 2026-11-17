@@ -10,6 +10,8 @@ Rails.application.routes.draw do
   get  "/sequential_errors", to: "pages#show_sequential"
   get  "/confirm", to: "pages#confirm_page"
   get  "/chain",   to: "pages#chain_page"
+  get  "/security", to: "pages#security_page"
+  get  "/reflect_flash", to: "pages#reflect_flash"
   delete "/items/:id", to: "pages#destroy", as: :item
   delete "/items_chain/:id", to: "pages#destroy_chain", as: :item_chain
 end

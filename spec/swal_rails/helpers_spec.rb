@@ -144,6 +144,34 @@ RSpec.describe SwalRails::Helpers do
       view.flash = { "notice" => "Saved".html_safe }
       expect(view.build_flash_payload).to eq([{ key: "notice", options: { text: "Saved" } }])
     end
+
+    # A params Hash copied into the flash comes back as a plain Hash after the
+    # session round-trip: the options SweetAlert2 renders as HTML are escaped.
+    it "escapes the options SweetAlert2 renders as HTML in a Hash flash" do
+      view.flash = { "notice" => { title: "<b>T</b>", html: "<img src=x>", text: "<i>", icon: "info",
+                                   imageUrl: "/a?b=1&c=2" } }
+      expect(view.build_flash_payload.first[:options]).to eq(
+        title: "&lt;b&gt;T&lt;/b&gt;", html: "&lt;img src=x&gt;", text: "<i>", icon: "info", imageUrl: "/a?b=1&c=2"
+      )
+    end
+
+    it "escapes nested HTML options" do
+      view.flash = { "notice" => { progressSteps: ["<b>1</b>"], inputOptions: { a: "<i>A</i>" } } }
+      expect(view.build_flash_payload.first[:options]).to eq(
+        progressSteps: ["&lt;b&gt;1&lt;/b&gt;"], inputOptions: { a: "&lt;i&gt;A&lt;/i&gt;" }
+      )
+    end
+
+    it "keeps an html_safe value (flash.now, same request)" do
+      view.flash = { "notice" => { html: "<b>ok</b>".html_safe } }
+      expect(view.build_flash_payload.first[:options]).to eq(html: "<b>ok</b>")
+    end
+
+    it "keeps raw HTML when config.flash_allow_html is true" do
+      SwalRails.configuration.flash_allow_html = true
+      view.flash = { "notice" => { html: "<b>ok</b>" } }
+      expect(view.build_flash_payload.first[:options]).to eq(html: "<b>ok</b>")
+    end
   end
 
   describe "#swal_flash" do
