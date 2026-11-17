@@ -21,7 +21,8 @@ module SwalRails
                   :expose_window_swal,
                   :flash_stack_delay,
                   :initializer_version,
-                  :silence_initializer_warning
+                  :silence_initializer_warning,
+                  :flash_allow_html
     attr_reader :confirm_mode, :flash_map, :i18n_scope, :flash_array_mode,
                 :assets_mode, :precompile_strategy
 
@@ -32,6 +33,10 @@ module SwalRails
       @expose_window_swal = true
       @flash_array_mode = :sequential
       @flash_stack_delay = 500
+      # Escape the HTML-rendered SA2 options of Hash flashes (title, html,
+      # footer, button texts…). Only flip to true if no request data can
+      # ever reach a Hash flash.
+      @flash_allow_html = false
       @i18n_scope = "swal_rails"
       # `initializer_version` left nil — apps that haven't regenerated
       # their initializer since `SwalRails::INITIALIZER_VERSION` was
@@ -123,8 +128,8 @@ module SwalRails
       {
         notice: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
         success: { icon: "success", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false },
-        alert: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
-        error: { icon: "error",   toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+        alert: { icon: "error", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
+        error: { icon: "error", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         warning: { icon: "warning", toast: true, position: "top-end", timer: 4000, timerProgressBar: true, showConfirmButton: false },
         info: { icon: "info", toast: true, position: "top-end", timer: 3000, timerProgressBar: true, showConfirmButton: false }
       }

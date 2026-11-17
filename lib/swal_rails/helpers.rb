@@ -37,13 +37,18 @@ module SwalRails
     # Values that are neither String nor Hash are technical flags, not messages —
     # Devise `:timeoutable` writes `flash[:timedout] = true` — so they are skipped
     # rather than stringified into a toast reading "true".
+    #
+    # In a Hash, the options SweetAlert2 renders as HTML are escaped (see
+    # HTML_OPTIONS): `flash[:notice] = params[:msg]` becomes a plain Hash after
+    # the session round-trip, so `?msg[html]=<img onerror=…>` would otherwise
+    # inject markup. `config.flash_allow_html = true` restores raw HTML.
     def build_flash_payload
       flash.to_h.flat_map do |key, message|
         flash_messages(message).filter_map do |m|
           next if m.blank?
           next unless m.is_a?(String) || m.is_a?(Hash)
 
-          options = m.is_a?(Hash) ? m.symbolize_keys : { text: m }
+          options = m.is_a?(Hash) ? escape_html_options(m.symbolize_keys) : { text: m }
           { key: key.to_s, options: options }
         end
       end
@@ -76,7 +81,32 @@ module SwalRails
       (now ? flash.now : flash)[key] = entries.size == 1 ? entries.first : entries
     end
 
+    # Options SweetAlert2 11.26 renders as HTML (setInnerHtml). Every other
+    # option is text (`text`, `titleText`) or a setting (`icon`, `imageUrl`…).
+    HTML_OPTIONS = %i[
+      title html footer iconHtml loaderHtml closeButtonHtml
+      confirmButtonText cancelButtonText denyButtonText
+      inputLabel inputPlaceholder validationMessage progressSteps inputOptions
+    ].freeze
+
     private
+
+    def escape_html_options(options)
+      return options if SwalRails.configuration.flash_allow_html
+
+      options.to_h { |key, value| [key, HTML_OPTIONS.include?(key) ? escape_html_value(value) : value] }
+    end
+
+    # html_escape leaves an html_safe String untouched — it survives a
+    # flash.now, but not a redirect (the session stores plain Strings).
+    def escape_html_value(value)
+      case value
+      when String then ERB::Util.html_escape(value)
+      when Array then value.map { |v| escape_html_value(v) }
+      when Hash then value.transform_values { |v| escape_html_value(v) }
+      else value
+      end
+    end
 
     def swal_flash_meta(mode, delay)
       meta = {}
