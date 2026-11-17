@@ -32,7 +32,8 @@ def npm_sync_files
   end
 
   pkg_path = "#{NPM_JS_DEST}/package.json"
-  pkg = JSON.parse(File.read(pkg_path))
+  # package.json holds non-ASCII (—): don't depend on the shell's locale.
+  pkg = JSON.parse(File.read(pkg_path, encoding: "UTF-8"))
   pkg["version"] = SwalRails::VERSION
   File.write(pkg_path, "#{JSON.pretty_generate(pkg)}\n")
   puts "  version → #{SwalRails::VERSION}"

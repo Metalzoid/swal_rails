@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -61,6 +64,9 @@ jobs:
           bundler-cache: true
       - name: RuboCop
         run: bundle exec rubocop --no-server
+      # Release publishes npm/ as committed: it must match app/assets + VERSION.
+      - name: npm/ in sync
+        run: bundle exec rake npm:sync && git diff --exit-code -- npm/
 
   # Single aggregator for branch protection — require this one check
   # rather than every individual matrix job.

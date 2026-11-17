@@ -8,20 +8,22 @@ on:
       - "v*"
 
 jobs:
-  release:
+  # Read-only: decides whether this push is a release. Kept apart so that the
+  # `release` environment (and its protection rules, if any) only gates real
+  # releases, not every push to main.
+  check:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      id-token: write
+      contents: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      should_release: ${{ steps.tag.outputs.should_release }}
+      create_tag: ${{ steps.tag.outputs.create_tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: "3.3"
-          bundler-cache: true
+          persist-credentials: false
 
       - name: Resolve release tag
         id: tag
@@ -47,47 +49,69 @@ jobs:
             echo "create_tag=true" >> "$GITHUB_OUTPUT"
           fi
 
+  # Holds the publishing credentials (OIDC). No Bundler here: no third-party
+  # gem code ever runs next to `id-token: write`. Every action is pinned by SHA.
+  release:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ruby/setup-ruby@b3aaceaef7e0ee231b499e7b5f49c03fc1d32199 # v1.338.0
+        with:
+          ruby-version: "3.3"
+
+      # npm/ is published as committed (CI's lint job keeps it in sync with
+      # `rake npm:sync`). Refuse to release a gem whose npm twin lags behind.
+      - name: Check npm package version
+        run: |
+          ruby -rjson -e '
+            load "./lib/swal_rails/version.rb"
+            npm = JSON.parse(File.read("npm/package.json", encoding: "UTF-8"))["version"]
+            abort "npm/package.json is #{npm}, gem is #{SwalRails::VERSION}: run rake npm:sync" unless npm == SwalRails::VERSION
+          '
+
       - name: Create and push tag
-        if: steps.tag.outputs.create_tag == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: needs.check.outputs.create_tag == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.tag.outputs.tag }}" -m "Release ${{ steps.tag.outputs.tag }}"
-          git push origin "${{ steps.tag.outputs.tag }}"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
 
       - name: Build gem
-        if: steps.tag.outputs.should_release == 'true'
         run: gem build swal_rails.gemspec
 
       - name: Create GitHub Release
-        if: steps.tag.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ steps.tag.outputs.tag }}" \
-            --title "swal_rails ${{ steps.tag.outputs.tag }}" \
+          gh release create "$TAG" \
+            --title "swal_rails $TAG" \
             --generate-notes \
             swal_rails-*.gem
 
       - name: Configure RubyGems credentials (OIDC)
-        if: steps.tag.outputs.should_release == 'true'
-        uses: rubygems/configure-rubygems-credentials@main
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
 
       - name: Publish to RubyGems
-        if: steps.tag.outputs.should_release == 'true'
         run: gem push swal_rails-*.gem
 
+      # npm Trusted Publishing (OIDC) needs npm >= 11.5.1, i.e. Node 24.
       - name: Setup Node.js
-        if: steps.tag.outputs.should_release == 'true'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: "20"
+          node-version: "24"
           registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
 
-      - name: Sync JS files and publish to npm
-        if: steps.tag.outputs.should_release == 'true'
-        run: |
-          bundle exec rake npm:sync
-          cd npm && npm publish --provenance --access public
+      - name: Publish to npm
+        working-directory: npm
+        run: npm publish --provenance --access public
